@@ -1,6 +1,6 @@
 {
   "name": "polyglot-keeper",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "AI-powered i18n synchronization tool that automatically translates missing keys and maintains perfect structural consistency across all locale files.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,7 +13,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "polyglot-keeper": "./bin/polyglot-keeper.js"
+    "polyglot-keeper": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -22,7 +22,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
     "dev": "tsx src/index.ts",
     "sync": "node ./dist/index.js",
     "prepublishOnly": "npm run build",
@@ -73,6 +74,7 @@
     "eslint-plugin-prettier": "^5.5.5",
     "jiti": "^2.6.1",
     "prettier": "^3.8.1",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0"

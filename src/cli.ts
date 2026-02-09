@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { run } from "../src/index.js"
+import { run } from "@/index"
 
 const args = process.argv.slice(2)
 const setup = args.includes("--setup") || args.includes("init")

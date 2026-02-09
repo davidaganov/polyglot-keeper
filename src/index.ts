@@ -1,12 +1,22 @@
 import path from "node:path"
 import dotenv from "dotenv"
-import { loadConfig, mergeWithDefaults, findConfigFile } from "./config-loader.js"
-import { runSetupWizard } from "./setup.js"
-import { syncTranslations } from "./sync.js"
-import { ApiProvider, type UserConfig, type SyncConfig } from "./types.js"
+import { runSetupWizard } from "@/setup"
+import { registerProvider, syncTranslations } from "@/core"
+import { loadConfig, mergeWithDefaults, findConfigFile } from "@/config-loader"
+import {
+  GeminiProvider,
+  OpenAIProvider,
+  AnthropicProvider,
+  geminiDefaultModel,
+  openaiDefaultModel,
+  anthropicDefaultModel
+} from "@/providers"
+import { API_PROVIDER, type UserConfig, type SyncConfig, LOCALE_FORMAT } from "@/interfaces"
 
-export { runSetupWizard, syncTranslations }
-export * from "./types.js"
+// Register default providers
+registerProvider(API_PROVIDER.GEMINI, GeminiProvider)
+registerProvider(API_PROVIDER.OPENAI, OpenAIProvider)
+registerProvider(API_PROVIDER.ANTHROPIC, AnthropicProvider)
 
 export interface RunOptions {
   rootDir?: string
@@ -59,22 +69,23 @@ export const run = async (options: RunOptions = {}): Promise<void> => {
   // Prepare sync config
   const langDir = path.resolve(rootDir, config.localesDir)
   const defaultLanguage = config.defaultLocale
+
   const getLocaleFileName = (localeCode: string): string => {
-    if (config.localeFormat === "pair") {
+    if (config.localeFormat === LOCALE_FORMAT.PAIR) {
       return `${localeCode}-${localeCode.toLowerCase()}.json`
     }
     return `${localeCode.toLowerCase()}.json`
   }
 
-  const getDefaultModel = (provider: ApiProvider): string => {
+  const getDefaultModel = (provider: API_PROVIDER): string => {
     switch (provider) {
-      case ApiProvider.OPENAI:
-        return "gpt-4o-mini"
-      case ApiProvider.ANTHROPIC:
-        return "claude-3-haiku-20240307"
-      case ApiProvider.GEMINI:
+      case API_PROVIDER.OPENAI:
+        return openaiDefaultModel
+      case API_PROVIDER.ANTHROPIC:
+        return anthropicDefaultModel
+      case API_PROVIDER.GEMINI:
       default:
-        return "gemini-flash-latest"
+        return geminiDefaultModel
     }
   }
 

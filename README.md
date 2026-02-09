@@ -4,6 +4,10 @@ AI-powered internationalization synchronization tool that automatically translat
 
 Works with any framework (React, Vue, Svelte, Angular, etc.) and any i18n library (react-i18next, vue-i18n, svelte-i18n, etc.).
 
+|               Before                |               After               |
+| :---------------------------------: | :-------------------------------: |
+| ![Before](./screenshots/before.png) | ![After](./screenshots/after.png) |
+
 ## Features
 
 - **AI Translation** — Automatically translates missing keys using Google Gemini, OpenAI, or Anthropic Claude

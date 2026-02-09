@@ -1,9 +1,9 @@
-export enum LocaleFormat {
+export enum LOCALE_FORMAT {
   SHORT = "short",
   PAIR = "pair"
 }
 
-export enum ApiProvider {
+export enum API_PROVIDER {
   GEMINI = "gemini",
   OPENAI = "openai",
   ANTHROPIC = "anthropic"
@@ -14,8 +14,8 @@ export type JSONObject = Record<string, unknown>
 export type TranslationBatch = Record<string, string>
 
 export interface UserConfig {
-  provider: ApiProvider
-  localeFormat: LocaleFormat
+  provider: API_PROVIDER
+  localeFormat: LOCALE_FORMAT
   locales: string[]
   defaultLocale: string
   localesDir: string
@@ -35,8 +35,8 @@ export interface SyncConfig {
   primaryLocaleFile: string
   defaultLanguage: string
   model: string
-  provider: ApiProvider
-  localeFormat: LocaleFormat
+  provider: API_PROVIDER
+  localeFormat: LOCALE_FORMAT
   locales: string[]
   defaultLocale: string
   localesDir: string
@@ -54,4 +54,9 @@ export interface TranslationStats {
   translated: number
   failed: number
   removed: number
+}
+
+export interface TranslationProvider {
+  name: string
+  translateBatch(batch: TranslationBatch, targetLang: string): Promise<TranslationBatch>
 }

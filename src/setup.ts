@@ -3,7 +3,13 @@ import path from "node:path"
 import readline from "node:readline"
 import { createInterface } from "node:readline/promises"
 import { stdin as input, stdout as output } from "node:process"
-import { ApiProvider, LocaleFormat, type UserConfig } from "./types.js"
+import { API_PROVIDER, LOCALE_FORMAT, type UserConfig } from "@/interfaces"
+import {
+  geminiDefaultModel,
+  geminiModelOptions,
+  openaiModelOptions,
+  anthropicModelOptions
+} from "@/providers"
 
 const c = {
   reset: "\x1b[0m",
@@ -189,10 +195,10 @@ const generateConfigFile = (config: UserConfig): string => {
 const generateEnvExample = (config: UserConfig): string => {
   const keyName = config.envVarName || "POLYGLOT_API_KEY"
 
-  const apiKeyUrls: Record<ApiProvider, string> = {
-    [ApiProvider.OPENAI]: "https://platform.openai.com/api-keys",
-    [ApiProvider.GEMINI]: "https://aistudio.google.com/app/apikey",
-    [ApiProvider.ANTHROPIC]: "https://console.anthropic.com/settings/keys"
+  const apiKeyUrls: Record<API_PROVIDER, string> = {
+    [API_PROVIDER.OPENAI]: "https://platform.openai.com/api-keys",
+    [API_PROVIDER.GEMINI]: "https://aistudio.google.com/app/apikey",
+    [API_PROVIDER.ANTHROPIC]: "https://console.anthropic.com/settings/keys"
   }
 
   return `# Polyglot Keeper - AI Translation Tool
@@ -203,52 +209,16 @@ ${keyName}=your_${config.provider}_api_key_here
 `
 }
 
-const getDefaultModel = (provider: ApiProvider): string => {
+const getModelOptions = (provider: API_PROVIDER) => {
   switch (provider) {
-    case ApiProvider.GEMINI:
-      return "gemini-2.5-flash"
-    case ApiProvider.OPENAI:
-      return "gpt-4o-mini"
-    case ApiProvider.ANTHROPIC:
-      return "claude-sonnet-4-5-20250929"
+    case API_PROVIDER.GEMINI:
+      return geminiModelOptions
+    case API_PROVIDER.OPENAI:
+      return openaiModelOptions
+    case API_PROVIDER.ANTHROPIC:
+      return anthropicModelOptions
     default:
-      return "gemini-2.5-flash"
-  }
-}
-
-const getModelOptions = (provider: ApiProvider) => {
-  switch (provider) {
-    case ApiProvider.GEMINI:
-      return [
-        { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", hint: "Fast & cost-effective" },
-        { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", hint: "Higher quality" },
-        { value: "gemini-3-flash", label: "Gemini 3 Flash", hint: "Latest with reasoning" },
-        { value: "gemini-3-pro", label: "Gemini 3 Pro", hint: "Most advanced" }
-      ] as const
-    case ApiProvider.OPENAI:
-      return [
-        { value: "gpt-4o-mini", label: "GPT-4o mini", hint: "Fast & affordable" },
-        { value: "gpt-4o", label: "GPT-4o", hint: "Balanced performance" },
-        { value: "gpt-4.1", label: "GPT-4.1", hint: "Advanced coding & long context" },
-        { value: "gpt-5.2", label: "GPT-5.2", hint: "Best quality, higher cost" }
-      ] as const
-    case ApiProvider.ANTHROPIC:
-      return [
-        {
-          value: "claude-sonnet-4-5-20250929",
-          label: "Claude Sonnet 4.5",
-          hint: "Balanced & efficient"
-        },
-        {
-          value: "claude-haiku-4-5-20251001",
-          label: "Claude Haiku 4.5",
-          hint: "Fastest & most affordable"
-        },
-        { value: "claude-opus-4-5-20251101", label: "Claude Opus 4.5", hint: "Highest quality" },
-        { value: "claude-opus-4-6", label: "Claude Opus 4.6", hint: "Latest flagship" }
-      ] as const
-    default:
-      return [{ value: getDefaultModel(provider), label: "Default", hint: "" }] as const
+      return [{ value: geminiDefaultModel, label: "Default", hint: "" }] as const
   }
 }
 
@@ -263,21 +233,21 @@ export const runSetupWizard = async (rootDir: string): Promise<UserConfig> => {
 
   section("AI Provider")
 
-  const provider = await selectOne<ApiProvider>(
+  const provider = await selectOne<API_PROVIDER>(
     "Choose your translation provider",
     [
       {
-        value: ApiProvider.GEMINI,
+        value: API_PROVIDER.GEMINI,
         label: "Google Gemini",
         hint: "Free tier available, generous limits"
       },
       {
-        value: ApiProvider.OPENAI,
+        value: API_PROVIDER.OPENAI,
         label: "OpenAI",
         hint: "Fast, high quality translations"
       },
       {
-        value: ApiProvider.ANTHROPIC,
+        value: API_PROVIDER.ANTHROPIC,
         label: "Anthropic Claude",
         hint: "Excellent for nuanced translations"
       }
@@ -291,7 +261,7 @@ export const runSetupWizard = async (rootDir: string): Promise<UserConfig> => {
 
   section("Model")
 
-  const modelOptions = getModelOptions(provider || ApiProvider.GEMINI)
+  const modelOptions = getModelOptions(provider || API_PROVIDER.GEMINI)
   const selectedModel = await selectOne<string>("Choose the AI model", modelOptions, 0)
 
   if (!selectedModel) {
@@ -300,16 +270,16 @@ export const runSetupWizard = async (rootDir: string): Promise<UserConfig> => {
 
   section("Locale Format")
 
-  const localeFormat = await selectOne<LocaleFormat>(
+  const localeFormat = await selectOne<LOCALE_FORMAT>(
     "How should locale files be named?",
     [
       {
-        value: LocaleFormat.SHORT,
+        value: LOCALE_FORMAT.SHORT,
         label: "en.json, ru.json",
         hint: "Simple locale codes (recommended)"
       },
       {
-        value: LocaleFormat.PAIR,
+        value: LOCALE_FORMAT.PAIR,
         label: "en-US.json, ru-RU.json",
         hint: "Full BCP 47 language tags"
       }
@@ -370,9 +340,9 @@ export const runSetupWizard = async (rootDir: string): Promise<UserConfig> => {
 
   // Create config
   const config: UserConfig = {
-    provider: provider || ApiProvider.GEMINI,
+    provider: provider || API_PROVIDER.GEMINI,
     model: selectedModel || "",
-    localeFormat: localeFormat || LocaleFormat.SHORT,
+    localeFormat: localeFormat || LOCALE_FORMAT.SHORT,
     locales,
     defaultLocale: defaultLocale || "",
     localesDir: localesDir || "",

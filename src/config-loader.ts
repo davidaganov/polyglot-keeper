@@ -1,10 +1,10 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { ApiProvider, LocaleFormat, type UserConfig } from "./types.js"
+import { API_PROVIDER, LOCALE_FORMAT, type UserConfig } from "@/interfaces"
 
 const DEFAULT_CONFIG: UserConfig = {
-  provider: ApiProvider.GEMINI,
-  localeFormat: LocaleFormat.SHORT,
+  provider: API_PROVIDER.GEMINI,
+  localeFormat: LOCALE_FORMAT.SHORT,
   locales: ["EN", "RU"],
   defaultLocale: "EN",
   localesDir: "src/locale",
