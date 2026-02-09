@@ -381,7 +381,7 @@ export const runSetupWizard = async (rootDir: string): Promise<UserConfig> => {
   }
 
   // Ensure locales directory exists
-  const fullLocalesDir = path.resolve(rootDir, localesDir || "src/locale")
+  const fullLocalesDir = path.resolve(rootDir, localesDir || "src/i18n")
   await fs.mkdir(fullLocalesDir, { recursive: true })
 
   // Write config file

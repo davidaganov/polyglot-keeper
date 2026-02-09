@@ -6,7 +6,7 @@ Works with any framework (React, Vue, Svelte, Angular, etc.) and any i18n librar
 
 ## Features
 
-- **AI Translation** — Automatically translates missing keys using Google Gemini or OpenAI
+- **AI Translation** — Automatically translates missing keys using Google Gemini, OpenAI, or Anthropic Claude
 - **Universal Framework Support** — Works with any project structure via JSON configuration
 - **Structure Mirroring** — Ensures all locale files match the exact key order of your primary locale
 - **Obsolete Key Removal** — Cleans up keys that no longer exist in the primary locale
@@ -34,6 +34,8 @@ This creates:
 - `.env.example` — API key template
 - Locales directory
 
+`init` only prepares the project. To translate, run `npx polyglot-keeper sync` when you're ready.
+
 ### 2. Add Your API Key
 
 ```bash
@@ -45,10 +47,11 @@ Get your API key from:
 
 - [Google AI Studio](https://aistudio.google.com/app/apikey) (Gemini)
 - [OpenAI Platform](https://platform.openai.com/api-keys) (OpenAI)
+- [Anthropic Console](https://console.anthropic.com/settings/keys) (Claude)
 
 ### 3. Create Base Locale File
 
-Create your primary locale file (e.g., `en-US.json`):
+Create your primary locale file (for example `en.json` if you use `localeFormat: "short"`):
 
 ```json
 {
@@ -91,6 +94,7 @@ npx polyglot-keeper sync
 ```json
 {
   "provider": "gemini",
+  "model": "gemini-2.5-flash",
   "localeFormat": "short",
   "locales": ["en", "ru", "es"],
   "defaultLocale": "en",
@@ -106,19 +110,20 @@ npx polyglot-keeper sync
 
 ### Options
 
-| Option          | Type                   | Default              | Description                            |
-| --------------- | ---------------------- | -------------------- | -------------------------------------- |
-| `provider`      | `"gemini" \| "openai"` | `"gemini"`           | AI provider                            |
-| `localeFormat`  | `"short" \| "pair"`    | `"short"`            | File naming: `en.json` or `en-US.json` |
-| `locales`       | `string[]`             | —                    | All supported locales                  |
-| `defaultLocale` | `string`               | —                    | Primary locale (source of truth)       |
-| `localesDir`    | `string`               | `"src/i18n"`         | Path to locales directory              |
-| `envFile`       | `string`               | `".env"`             | Environment file name                  |
-| `envVarName`    | `string`               | `"POLYGLOT_API_KEY"` | API key variable name                  |
-| `batchSize`     | `number`               | `200`                | Keys per batch                         |
-| `batchDelay`    | `number`               | `2000`               | Delay between batches (ms)             |
-| `retryDelay`    | `number`               | `35000`              | Delay on rate limit (ms)               |
-| `maxRetries`    | `number`               | `3`                  | Retry attempts                         |
+| Option          | Type                                  | Default              | Description                            |
+| --------------- | ------------------------------------- | -------------------- | -------------------------------------- |
+| `provider`      | `"gemini" \| "openai" \| "anthropic"` | `"gemini"`           | AI provider                            |
+| `model`         | `string`                              | provider-dependent   | Model name for the selected provider   |
+| `localeFormat`  | `"short" \| "pair"`                   | `"short"`            | File naming: `en.json` or `en-US.json` |
+| `locales`       | `string[]`                            | —                    | All supported locales                  |
+| `defaultLocale` | `string`                              | —                    | Primary locale (source of truth)       |
+| `localesDir`    | `string`                              | `"src/i18n"`         | Path to locales directory              |
+| `envFile`       | `string`                              | `".env"`             | Environment file name                  |
+| `envVarName`    | `string`                              | `"POLYGLOT_API_KEY"` | API key variable name                  |
+| `batchSize`     | `number`                              | `200`                | Keys per batch                         |
+| `batchDelay`    | `number`                              | `2000`               | Delay between batches (ms)             |
+| `retryDelay`    | `number`                              | `35000`              | Delay on rate limit (ms)               |
+| `maxRetries`    | `number`                              | `3`                  | Retry attempts                         |
 
 ### Locale Formats
 
@@ -208,7 +213,7 @@ npx polyglot-keeper sync --root ./my-project
 ## Requirements
 
 - Node.js 18+
-- Google Gemini or OpenAI API key
+- Google Gemini, OpenAI, or Anthropic API key
 
 ## License
 
