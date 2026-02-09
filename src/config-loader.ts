@@ -1,6 +1,7 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import { API_PROVIDER, LOCALE_FORMAT, type UserConfig } from "@/interfaces"
+import { fileExists } from "@/utils"
 
 const DEFAULT_CONFIG: UserConfig = {
   provider: API_PROVIDER.GEMINI,
@@ -21,11 +22,8 @@ export const findConfigFile = async (rootDir: string): Promise<string | null> =>
 
   for (const file of possibleFiles) {
     const fullPath = path.join(rootDir, file)
-    try {
-      await fs.access(fullPath)
+    if (await fileExists(fullPath)) {
       return fullPath
-    } catch {
-      continue
     }
   }
 

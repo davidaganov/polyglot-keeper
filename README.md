@@ -216,9 +216,58 @@ npx polyglot-keeper sync --root ./my-project
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 20+
 - Google Gemini, OpenAI, or Anthropic API key
+
+## Contributing
+
+### Setup
+
+```bash
+git clone https://github.com/davidaganov/polyglot-keeper.git
+cd polyglot-keeper
+npm install
+```
+
+Husky pre-commit hooks install automatically via `prepare` script.
+
+### Development Workflow
+
+**Pre-commit checks** (run automatically):
+
+- Code formatting (`npm run format:check`)
+- Linting (`npm run lint`)
+- Type checking (`npm run typecheck`)
+- Tests (`npm run test`)
+
+**Available scripts**:
+
+```bash
+npm run format      # Auto-format with Prettier
+npm run lint:fix    # Auto-fix ESLint issues
+npm run test        # Run tests in watch mode
+npm run coverage    # Run tests with coverage report
+npm run build       # Build the project
+```
+
+**Skip hooks** (not recommended):
+
+```bash
+git commit -m "..." --no-verify
+```
+
+### Pull Request Requirements
+
+All PRs trigger CI checks on Node.js 20.x LTS:
+
+- Formatting, linting, type checking
+- Full test suite
+- Build verification
 
 ## License
 
 MIT
+
+## Author
+
+[David Aganov](https://github.com/davidaganov)
