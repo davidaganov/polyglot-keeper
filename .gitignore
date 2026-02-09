@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.env
+.env.development
+.env.local
+.DS_Store
+*.log
+
+# Lock files (optional for libraries)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db

@@ -1,0 +1,67 @@
+{
+  "name": "polyglot-keeper",
+  "version": "1.0.0",
+  "description": "AI-powered i18n synchronization tool that automatically translates missing keys and maintains perfect structural consistency across all locale files.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "polyglot-keeper": "./bin/polyglot-keeper.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "sync": "node ./dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "i18n",
+    "translation",
+    "internationalization",
+    "localization",
+    "l10n",
+    "ai",
+    "gemini",
+    "openai",
+    "gpt",
+    "sync",
+    "cli",
+    "json",
+    "locales",
+    "multilingual"
+  ],
+  "author": "David Aganov <davidaganov21@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davidaganov/polyglot-keeper.git"
+  },
+  "homepage": "https://www.npmjs.com/package/polyglot-keeper",
+  "bugs": {
+    "url": "https://github.com/davidaganov/polyglot-keeper/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

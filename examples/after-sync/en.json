@@ -1,0 +1,22 @@
+{
+  "common": {
+    "welcome": "Welcome",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "confirm": "Confirm"
+  },
+  "auth": {
+    "login": "Log In",
+    "logout": "Log Out",
+    "register": "Sign Up",
+    "forgot_password": "Forgot Password?",
+    "reset_password": "Reset Password"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "statistics": "Statistics",
+    "recent_activity": "Recent Activity"
+  }
+}
