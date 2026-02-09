@@ -17,7 +17,7 @@ export const run = async (options: RunOptions = {}): Promise<void> => {
   const rootDir = options.rootDir ?? process.cwd()
 
   // Check for config
-  let configPath = await findConfigFile(rootDir)
+  const configPath = await findConfigFile(rootDir)
   let userConfig: UserConfig | null = null
 
   if (options.setup || !configPath) {
