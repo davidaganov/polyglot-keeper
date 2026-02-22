@@ -11,6 +11,8 @@ Works with any framework (React, Vue, Svelte, Angular, etc.) and any i18n librar
 ## Features
 
 - **AI Translation** — Automatically translates missing keys using Google Gemini, OpenAI, or Anthropic Claude
+- **Change Tracking** — Detects changed source values and retranslates them across all locales
+- **Carefully Mode** — Interactive review of each changed key: retranslate, skip, or freeze
 - **Universal Framework Support** — Works with any project structure via JSON configuration
 - **Structure Mirroring** — Ensures all locale files match the exact key order of your primary locale
 - **Obsolete Key Removal** — Cleans up keys that no longer exist in the primary locale
@@ -103,6 +105,7 @@ npx polyglot-keeper sync
   "locales": ["en", "ru", "es"],
   "defaultLocale": "en",
   "localesDir": "src/i18n",
+  "trackChanges": "carefully",
   "envFile": ".env",
   "envVarName": "POLYGLOT_API_KEY",
   "batchSize": 200,
@@ -122,12 +125,27 @@ npx polyglot-keeper sync
 | `locales`       | `string[]`                            | —                    | All supported locales                  |
 | `defaultLocale` | `string`                              | —                    | Primary locale (source of truth)       |
 | `localesDir`    | `string`                              | `"src/i18n"`         | Path to locales directory              |
+| `trackChanges`  | `"off" \| "on" \| "carefully"`        | `"off"`              | Change tracking mode (see below)       |
 | `envFile`       | `string`                              | `".env"`             | Environment file name                  |
 | `envVarName`    | `string`                              | `"POLYGLOT_API_KEY"` | API key variable name                  |
 | `batchSize`     | `number`                              | `200`                | Keys per batch                         |
 | `batchDelay`    | `number`                              | `2000`               | Delay between batches (ms)             |
 | `retryDelay`    | `number`                              | `35000`              | Delay on rate limit (ms)               |
 | `maxRetries`    | `number`                              | `3`                  | Retry attempts                         |
+
+### Change Tracking
+
+By default, only new/missing keys are translated. Enable `trackChanges` to detect when source values change and retranslate them:
+
+| Mode          | Behavior                                                          |
+| ------------- | ----------------------------------------------------------------- |
+| `"off"`       | Only translate new keys, ignore value changes                     |
+| `"on"`        | Auto-retranslate all changed keys                                 |
+| `"carefully"` | Interactive review — choose per key: retranslate, skip, or freeze |
+
+When enabled, a `.polyglot-lock.json` snapshot file is created to track source values between runs.
+
+**Freeze** locks a key from future retranslation — useful when you've manually adjusted a translation. Use `--force` to clear all frozen keys.
 
 ### Locale Formats
 
@@ -144,6 +162,9 @@ npx polyglot-keeper --setup
 # Sync translations
 npx polyglot-keeper sync
 
+# Force retranslate all existing keys
+npx polyglot-keeper sync --force
+
 # Run with specific root directory
 npx polyglot-keeper sync --root ./my-project
 ```
@@ -151,8 +172,9 @@ npx polyglot-keeper sync --root ./my-project
 ## How It Works
 
 1. **Translation** — Finds missing keys in target locales and translates via AI
-2. **Cleanup** — Removes obsolete keys that don't exist in the primary locale
-3. **Reordering** — Restructures all files to match the primary locale's key order
+2. **Change Detection** — Compares source values with the lock file snapshot and retranslates changed keys
+3. **Cleanup** — Removes obsolete keys that don't exist in the primary locale
+4. **Reordering** — Restructures all files to match the primary locale's key order
 
 ## Example Output
 

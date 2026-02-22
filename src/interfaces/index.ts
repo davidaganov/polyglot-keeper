@@ -9,6 +9,12 @@ export enum API_PROVIDER {
   ANTHROPIC = "anthropic"
 }
 
+export enum TRACK_CHANGES {
+  OFF = "off",
+  ON = "on",
+  CAREFULLY = "carefully"
+}
+
 export type JSONObject = Record<string, unknown>
 
 export type TranslationBatch = Record<string, string>
@@ -19,6 +25,7 @@ export interface UserConfig {
   locales: string[]
   defaultLocale: string
   localesDir: string
+  trackChanges?: TRACK_CHANGES
   envFile?: string
   envVarName?: string
   model?: string
@@ -40,6 +47,8 @@ export interface SyncConfig {
   locales: string[]
   defaultLocale: string
   localesDir: string
+  trackChanges: TRACK_CHANGES
+  forceRetranslate: boolean
   envFile?: string
   envVarName?: string
   batchSize: number
@@ -54,6 +63,7 @@ export interface TranslationStats {
   translated: number
   failed: number
   removed: number
+  updated: number
 }
 
 export interface TranslationProvider {

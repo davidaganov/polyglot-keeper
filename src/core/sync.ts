@@ -12,12 +12,91 @@ import {
 } from "@/utils"
 import {
   LOCALE_FORMAT,
+  TRACK_CHANGES,
   TranslationProvider,
   type JSONObject,
   type TranslationBatch,
   type TranslationStats,
   type SyncConfig
 } from "@/interfaces"
+
+export interface LockFileData {
+  __frozen: string[]
+  [key: string]: string | string[]
+}
+
+const LOCK_FILE_NAME = ".polyglot-lock.json"
+
+const loadLockFile = async (
+  lockFilePath: string
+): Promise<{ values: Record<string, string>; frozen: string[] }> => {
+  if (await fileExists(lockFilePath)) {
+    const content = await fs.readFile(lockFilePath, "utf-8")
+    const raw: LockFileData = JSON.parse(content)
+    const frozen = Array.isArray(raw.__frozen) ? raw.__frozen : []
+
+    const values: Record<string, string> = {}
+    for (const [k, v] of Object.entries(raw)) {
+      if (k !== "__frozen" && typeof v === "string") {
+        values[k] = v
+      }
+    }
+
+    return { values, frozen }
+  }
+
+  return { values: {}, frozen: [] }
+}
+
+const saveLockFile = async (
+  lockFilePath: string,
+  sourceData: JSONObject,
+  sourceKeys: string[],
+  frozen: string[],
+  skippedKeys: string[],
+  previousValues: Record<string, string>
+): Promise<void> => {
+  const lockData: LockFileData = { __frozen: frozen }
+  const skippedSet = new Set(skippedKeys)
+
+  for (const key of sourceKeys) {
+    if (skippedSet.has(key) && previousValues[key] !== undefined) {
+      // Skipped keys keep their OLD snapshot value (will be detected as changed again next time)
+      lockData[key] = previousValues[key]
+    } else {
+      const value = getNestedValue(sourceData, key)
+      if (value !== undefined) {
+        lockData[key] = value
+      }
+    }
+  }
+
+  await fs.writeFile(lockFilePath, JSON.stringify(lockData, null, 2) + "\n", "utf-8")
+}
+
+const findChangedKeys = (
+  sourceData: JSONObject,
+  sourceKeys: string[],
+  lockValues: Record<string, string>,
+  frozenKeys: string[]
+): string[] => {
+  const frozenSet = new Set(frozenKeys)
+  const changedKeys: string[] = []
+
+  for (const key of sourceKeys) {
+    if (frozenSet.has(key)) continue
+
+    const currentValue = getNestedValue(sourceData, key)
+    const lockedValue = lockValues[key]
+
+    // Key exists in lock but value has changed
+    if (lockedValue !== undefined && currentValue !== lockedValue) {
+      changedKeys.push(key)
+    }
+  }
+
+  return changedKeys
+}
 
 const getLocaleFileName = (localeCode: string, format: LOCALE_FORMAT): string => {
   if (format === LOCALE_FORMAT.PAIR) {
@@ -76,21 +155,21 @@ const translateBatchWithRetry = async (
   }
 }
 
-const translateMissingKeys = async (
-  missingKeys: string[],
+const translateKeys = async (
+  keysToTranslate: string[],
   sourceData: JSONObject,
   targetData: JSONObject,
   localeCode: string,
   config: SyncConfig,
   provider: TranslationProvider
-): Promise<{ missingKeys: number; translated: number; failed: number }> => {
+): Promise<{ translated: number; failed: number }> => {
   let translated = 0
   let failed = 0
-  const totalBatches = Math.ceil(missingKeys.length / config.batchSize)
+  const totalBatches = Math.ceil(keysToTranslate.length / config.batchSize)
 
-  for (let i = 0; i < missingKeys.length; i += config.batchSize) {
+  for (let i = 0; i < keysToTranslate.length; i += config.batchSize) {
     const batchNumber = Math.floor(i / config.batchSize) + 1
-    const batchKeys = missingKeys.slice(i, i + config.batchSize)
+    const batchKeys = keysToTranslate.slice(i, i + config.batchSize)
 
     console.log(`  📤 Batch ${batchNumber}/${totalBatches} (${batchKeys.length} keys)`)
 
@@ -110,7 +189,7 @@ const translateMissingKeys = async (
 
       console.log(`  ✅ Translated ${Object.keys(translatedBatch).length} keys`)
 
-      if (i + config.batchSize < missingKeys.length) {
+      if (i + config.batchSize < keysToTranslate.length) {
         console.log(`  ⏳ Waiting ${config.batchDelay / 1000}s before next batch...`)
         await sleep(config.batchDelay)
       }
@@ -121,13 +200,14 @@ const translateMissingKeys = async (
     }
   }
 
-  return { missingKeys: missingKeys.length, translated, failed }
+  return { translated, failed }
 }
 
 const processLocale = async (
   localeCode: string,
   sourceData: JSONObject,
   sourceKeys: string[],
+  changedKeys: string[],
   config: SyncConfig,
   provider: TranslationProvider
 ): Promise<TranslationStats> => {
@@ -147,13 +227,32 @@ const processLocale = async (
   // Find missing keys
   const missingKeys = sourceKeys.filter((key) => getNestedValue(targetData, key) === undefined)
 
-  if (missingKeys.length === 0 && removed === 0) {
+  // Determine keys to retranslate (changed or force)
+  let keysToUpdate: string[] = []
+  if (config.forceRetranslate) {
+    // Force mode: retranslate all existing keys
+    keysToUpdate = sourceKeys.filter((key) => getNestedValue(targetData, key) !== undefined)
+    if (keysToUpdate.length > 0) {
+      console.log(`🔄 Force mode: retranslating all ${keysToUpdate.length} existing keys`)
+    }
+  } else if (changedKeys.length > 0) {
+    // Track changes mode: retranslate only changed keys that exist in target
+    keysToUpdate = changedKeys.filter((key) => getNestedValue(targetData, key) !== undefined)
+    if (keysToUpdate.length > 0) {
+      console.log(`🔄 Found ${keysToUpdate.length} changed keys to retranslate`)
+    }
+  }
+
+  const allKeysToTranslate = [...missingKeys, ...keysToUpdate]
+
+  if (allKeysToTranslate.length === 0 && removed === 0) {
     console.log(`✅ ${localeCode} is up to date (${sourceKeys.length} keys)`)
     await saveLocaleFile(filePath, targetData, fileName, sourceData)
     return {
       locale: localeCode,
       missingKeys: 0,
       translated: 0,
+      updated: 0,
       failed: 0,
       removed
     }
@@ -163,8 +262,8 @@ const processLocale = async (
     console.log(`📦 Found ${missingKeys.length} missing keys out of ${sourceKeys.length} total`)
   }
 
-  const stats = await translateMissingKeys(
-    missingKeys,
+  const stats = await translateKeys(
+    allKeysToTranslate,
     sourceData,
     targetData,
     localeCode,
@@ -173,12 +272,24 @@ const processLocale = async (
   )
   await saveLocaleFile(filePath, targetData, fileName, sourceData)
 
-  return { locale: localeCode, ...stats, removed }
+  // Split translated count between new and updated
+  const updatedCount = Math.min(keysToUpdate.length, stats.translated)
+  const newlyTranslated = stats.translated - updatedCount
+
+  return {
+    locale: localeCode,
+    missingKeys: missingKeys.length,
+    translated: newlyTranslated,
+    updated: updatedCount,
+    failed: stats.failed,
+    removed
+  }
 }
 
 const printSummary = (results: TranslationStats[], startTime: number): void => {
   const duration = ((Date.now() - startTime) / 1000).toFixed(2)
   const totalTranslated = results.reduce((sum, r) => sum + r.translated, 0)
+  const totalUpdated = results.reduce((sum, r) => sum + r.updated, 0)
   const totalFailed = results.reduce((sum, r) => sum + r.failed, 0)
   const totalRemoved = results.reduce((sum, r) => sum + r.removed, 0)
 
@@ -187,6 +298,7 @@ const printSummary = (results: TranslationStats[], startTime: number): void => {
   results.forEach((stat) => {
     const parts: string[] = []
     if (stat.translated > 0) parts.push(`${stat.translated} translated`)
+    if (stat.updated > 0) parts.push(`${stat.updated} updated`)
     if (stat.failed > 0) parts.push(`${stat.failed} failed`)
     if (stat.removed > 0) parts.push(`${stat.removed} removed`)
 
@@ -198,6 +310,7 @@ const printSummary = (results: TranslationStats[], startTime: number): void => {
 
   const summary: string[] = []
   if (totalTranslated > 0) summary.push(`${totalTranslated} translations`)
+  if (totalUpdated > 0) summary.push(`${totalUpdated} updated`)
   if (totalFailed > 0) summary.push(`${totalFailed} failures`)
   if (totalRemoved > 0) summary.push(`${totalRemoved} removed`)
 
@@ -227,14 +340,137 @@ export const syncTranslations = async (config: SyncConfig): Promise<TranslationS
   const targetLocales = config.locales.filter((locale) => locale !== config.defaultLanguage)
   console.log(`🎯 Target locales: ${targetLocales.join(", ")}`)
 
+  // Detect changed keys via lock file
+  let changedKeys: string[] = []
+  let frozenKeys: string[] = []
+  let skippedKeys: string[] = []
+  let lockValues: Record<string, string> = {}
+  const lockFilePath = path.join(config.rootDir, LOCK_FILE_NAME)
+  const trackingEnabled =
+    config.trackChanges === TRACK_CHANGES.ON || config.trackChanges === TRACK_CHANGES.CAREFULLY
+
+  if (config.forceRetranslate) {
+    console.log(`🔄 Force mode enabled — all existing keys will be retranslated`)
+    // Force mode clears frozen keys
+    frozenKeys = []
+  } else if (trackingEnabled) {
+    const lockFile = await loadLockFile(lockFilePath)
+    lockValues = lockFile.values
+    frozenKeys = lockFile.frozen
+    const isFirstRun = Object.keys(lockValues).length === 0
+
+    if (isFirstRun) {
+      console.log(`📸 First run with change tracking — creating lock file snapshot`)
+    } else {
+      // Log frozen keys
+      if (frozenKeys.length > 0) {
+        console.log(
+          `🔒 ${frozenKeys.length} frozen key${frozenKeys.length > 1 ? "s" : ""} will be skipped`
+        )
+      }
+
+      changedKeys = findChangedKeys(sourceData, sourceKeys, lockValues, frozenKeys)
+
+      if (changedKeys.length > 0) {
+        // Handle carefully mode with interactive prompts
+        if (config.trackChanges === TRACK_CHANGES.CAREFULLY) {
+          const { askChangedKeysAction, askPerKeyAction } = await import("@/interactive")
+          const globalAction = await askChangedKeysAction(changedKeys.length, frozenKeys.length)
+
+          if (globalAction === "skip-all") {
+            // Skip all — keep all changed keys as-is, don't update their snapshots
+            skippedKeys = [...changedKeys]
+            changedKeys = []
+            console.log(`\n⏭️  Skipped all changed keys`)
+          } else if (globalAction === "review") {
+            // Review one by one
+            const keysToRetranslate: string[] = []
+            const keysToSkip: string[] = []
+            const keysToFreeze: string[] = []
+
+            for (let i = 0; i < changedKeys.length; i++) {
+              const key = changedKeys[i]
+              const oldValue = lockValues[key] || ""
+              const newValue = getNestedValue(sourceData, key) || ""
+
+              const action = await askPerKeyAction(
+                key,
+                oldValue,
+                newValue,
+                i + 1,
+                changedKeys.length
+              )
+
+              switch (action) {
+                case "retranslate":
+                  keysToRetranslate.push(key)
+                  break
+                case "skip":
+                  keysToSkip.push(key)
+                  break
+                case "freeze":
+                  keysToFreeze.push(key)
+                  break
+              }
+            }
+
+            // Add newly frozen keys to frozen list
+            frozenKeys = [...frozenKeys, ...keysToFreeze]
+            skippedKeys = keysToSkip
+            changedKeys = keysToRetranslate
+
+            console.log()
+            if (keysToRetranslate.length > 0)
+              console.log(
+                `  🔄 ${keysToRetranslate.length} key${keysToRetranslate.length > 1 ? "s" : ""} to retranslate`
+              )
+            if (keysToSkip.length > 0)
+              console.log(
+                `  ⏭️  ${keysToSkip.length} key${keysToSkip.length > 1 ? "s" : ""} skipped`
+              )
+            if (keysToFreeze.length > 0)
+              console.log(
+                `  🔒 ${keysToFreeze.length} key${keysToFreeze.length > 1 ? "s" : ""} frozen`
+              )
+          } else {
+            // retranslate-all — proceed as normal
+            console.log(
+              `\n🔄 Retranslating ${changedKeys.length} changed key${changedKeys.length > 1 ? "s" : ""}`
+            )
+          }
+        } else {
+          // ON mode — auto-retranslate all
+          console.log(
+            `🔄 Detected ${changedKeys.length} changed source key${changedKeys.length > 1 ? "s" : ""}: ${changedKeys.join(", ")}`
+          )
+        }
+      } else {
+        console.log(`📸 No source value changes detected`)
+      }
+    }
+  }
+
   // Initialize provider
   const provider = getProvider(config.provider, config.apiKey, config.model)
   console.log(`🤖 Using provider: ${provider.name} (model: ${config.model})`)
 
   const results: TranslationStats[] = []
   for (const localeCode of targetLocales) {
-    const stats = await processLocale(localeCode, sourceData, sourceKeys, config, provider)
+    const stats = await processLocale(
+      localeCode,
+      sourceData,
+      sourceKeys,
+      changedKeys,
+      config,
+      provider
+    )
     results.push(stats)
+  }
+
+  // Save lock file after successful sync (if tracking is enabled or force mode)
+  if (trackingEnabled || config.forceRetranslate) {
+    await saveLockFile(lockFilePath, sourceData, sourceKeys, frozenKeys, skippedKeys, lockValues)
+    console.log(`\n📸 Lock file updated (${LOCK_FILE_NAME})`)
   }
 
   printSummary(results, startTime)

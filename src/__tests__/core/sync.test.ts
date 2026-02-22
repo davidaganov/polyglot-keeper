@@ -3,7 +3,12 @@ import fs from "node:fs/promises"
 import { syncTranslations } from "@/core/sync"
 import * as registry from "@/core/registry"
 import * as utils from "@/utils"
-import { LOCALE_FORMAT, type SyncConfig, type TranslationProvider } from "@/interfaces"
+import {
+  LOCALE_FORMAT,
+  TRACK_CHANGES,
+  type SyncConfig,
+  type TranslationProvider
+} from "@/interfaces"
 
 // Mock dependencies
 vi.mock("node:fs/promises")
@@ -15,6 +20,12 @@ vi.mock("@/utils", async () => {
     sleep: vi.fn()
   }
 })
+
+// Mock interactive module (prevent stdin usage in tests)
+vi.mock("@/interactive", () => ({
+  askChangedKeysAction: vi.fn(),
+  askPerKeyAction: vi.fn()
+}))
 
 // Mock Provider
 const mockTranslateBatch = vi.fn()
@@ -39,7 +50,9 @@ describe("Sync Core", () => {
     batchSize: 10,
     batchDelay: 0,
     retryDelay: 0,
-    maxRetries: 3
+    maxRetries: 3,
+    trackChanges: TRACK_CHANGES.OFF,
+    forceRetranslate: false
   }
 
   const sourceData = {
@@ -156,5 +169,285 @@ describe("Sync Core", () => {
 
     expect(mockTranslateBatch).toHaveBeenCalledTimes(2)
     expect(stats[0].translated).toBe(2)
+  })
+
+  it("should retranslate changed keys when trackChanges is ON", async () => {
+    const configWithTracking: SyncConfig = {
+      ...mockConfig,
+      trackChanges: TRACK_CHANGES.ON,
+      rootDir: "."
+    }
+
+    vi.mocked(utils.fileExists).mockResolvedValue(true)
+    vi.mocked(fs.readFile).mockImplementation(async (filePath) => {
+      const p = typeof filePath === "string" ? filePath : ""
+      if (p.includes("en.json")) {
+        // Source has UPDATED value for "greeting"
+        return JSON.stringify({ greeting: "Hello World", nested: { key: "Value" } })
+      }
+      if (p.includes("ru.json")) {
+        return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
+      }
+      if (p.includes(".polyglot-lock.json")) {
+        // Lock file has OLD value for "greeting" (with __frozen array)
+        return JSON.stringify({
+          __frozen: [],
+          greeting: "Hello",
+          "nested.key": "Value"
+        })
+      }
+      return "{}"
+    })
+
+    mockTranslateBatch.mockResolvedValue({ greeting: "Привет мир" })
+
+    const stats = await syncTranslations(configWithTracking)
+
+    expect(stats[0].updated).toBe(1)
+    expect(stats[0].translated).toBe(0) // No new missing keys
+    expect(mockTranslateBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ greeting: "Hello World" }),
+      "ru"
+    )
+  })
+
+  it("should retranslate ALL keys when force mode is enabled", async () => {
+    const configForce: SyncConfig = {
+      ...mockConfig,
+      forceRetranslate: true
+    }
+
+    vi.mocked(utils.fileExists).mockResolvedValue(true)
+    vi.mocked(fs.readFile).mockImplementation(async (filePath) => {
+      const p = typeof filePath === "string" ? filePath : ""
+      if (p.includes("en.json")) return JSON.stringify(sourceData)
+      if (p.includes("ru.json"))
+        return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
+      return "{}"
+    })
+
+    mockTranslateBatch.mockResolvedValue({
+      greeting: "Привет",
+      "nested.key": "Значение"
+    })
+
+    const stats = await syncTranslations(configForce)
+
+    // All existing keys should be retranslated
+    expect(stats[0].updated).toBe(2)
+    expect(stats[0].translated).toBe(0)
+    expect(mockTranslateBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ greeting: "Hello", "nested.key": "Value" }),
+      "ru"
+    )
+  })
+
+  it("should NOT detect changes when trackChanges is OFF", async () => {
+    // trackChanges is OFF by default in mockConfig
+    vi.mocked(utils.fileExists).mockResolvedValue(true)
+    vi.mocked(fs.readFile).mockImplementation(async (filePath) => {
+      const p = typeof filePath === "string" ? filePath : ""
+      if (p.includes("en.json")) {
+        return JSON.stringify({ greeting: "Hello World", nested: { key: "Value" } })
+      }
+      if (p.includes("ru.json")) {
+        return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
+      }
+      return "{}"
+    })
+
+    const stats = await syncTranslations(mockConfig)
+
+    // No translation should happen — all keys present, tracking disabled
+    expect(stats[0].translated).toBe(0)
+    expect(stats[0].updated).toBe(0)
+    expect(mockTranslateBatch).not.toHaveBeenCalled()
+  })
+
+  it("should filter out frozen keys from change detection", async () => {
+    const configWithTracking: SyncConfig = {
+      ...mockConfig,
+      trackChanges: TRACK_CHANGES.ON,
+      rootDir: "."
+    }
+
+    vi.mocked(utils.fileExists).mockResolvedValue(true)
+    vi.mocked(fs.readFile).mockImplementation(async (filePath) => {
+      const p = typeof filePath === "string" ? filePath : ""
+      if (p.includes("en.json")) {
+        // Both "greeting" and "nested.key" have changed values
+        return JSON.stringify({ greeting: "Hello World", nested: { key: "New Value" } })
+      }
+      if (p.includes("ru.json")) {
+        return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
+      }
+      if (p.includes(".polyglot-lock.json")) {
+        // "greeting" is frozen — should NOT be retranslated even though it changed
+        return JSON.stringify({
+          __frozen: ["greeting"],
+          greeting: "Hello",
+          "nested.key": "Value"
+        })
+      }
+      return "{}"
+    })
+
+    mockTranslateBatch.mockResolvedValue({ "nested.key": "Новое значение" })
+
+    const stats = await syncTranslations(configWithTracking)
+
+    // Only nested.key should be retranslated (greeting is frozen)
+    expect(stats[0].updated).toBe(1)
+    expect(mockTranslateBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ "nested.key": "New Value" }),
+      "ru"
+    )
+    // Verify greeting was NOT sent for translation
+    expect(mockTranslateBatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ greeting: expect.anything() }),
+      "ru"
+    )
+  })
+
+  it("should clear frozen keys when force mode is enabled", async () => {
+    const configForce: SyncConfig = {
+      ...mockConfig,
+      forceRetranslate: true
+    }
+
+    vi.mocked(utils.fileExists).mockResolvedValue(true)
+    vi.mocked(fs.readFile).mockImplementation(async (filePath) => {
+      const p = typeof filePath === "string" ? filePath : ""
+      if (p.includes("en.json")) return JSON.stringify(sourceData)
+      if (p.includes("ru.json"))
+        return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
+      if (p.includes(".polyglot-lock.json")) {
+        return JSON.stringify({
+          __frozen: ["greeting"],
+          greeting: "Hello",
+          "nested.key": "Value"
+        })
+      }
+      return "{}"
+    })
+
+    mockTranslateBatch.mockResolvedValue({
+      greeting: "Привет",
+      "nested.key": "Значение"
+    })
+
+    const stats = await syncTranslations(configForce)
+
+    // ALL keys retranslated (even previously frozen greeting)
+    expect(stats[0].updated).toBe(2)
+
+    // Verify lock file saved with empty __frozen
+    const lockFileWriteCall = vi
+      .mocked(fs.writeFile)
+      .mock.calls.find(
+        (call) => typeof call[0] === "string" && call[0].includes(".polyglot-lock.json")
+      )
+    expect(lockFileWriteCall).toBeDefined()
+    const savedLockData = JSON.parse(lockFileWriteCall![1] as string)
+    expect(savedLockData.__frozen).toEqual([])
+  })
+
+  it("should not update snapshot for skipped keys (carefully mode, skip-all)", async () => {
+    const { askChangedKeysAction } = await import("@/interactive")
+
+    const configCareful: SyncConfig = {
+      ...mockConfig,
+      trackChanges: TRACK_CHANGES.CAREFULLY,
+      rootDir: "."
+    }
+
+    vi.mocked(askChangedKeysAction).mockResolvedValue("skip-all")
+
+    vi.mocked(utils.fileExists).mockResolvedValue(true)
+    vi.mocked(fs.readFile).mockImplementation(async (filePath) => {
+      const p = typeof filePath === "string" ? filePath : ""
+      if (p.includes("en.json")) {
+        return JSON.stringify({ greeting: "Hello World", nested: { key: "Value" } })
+      }
+      if (p.includes("ru.json")) {
+        return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
+      }
+      if (p.includes(".polyglot-lock.json")) {
+        return JSON.stringify({
+          __frozen: [],
+          greeting: "Hello",
+          "nested.key": "Value"
+        })
+      }
+      return "{}"
+    })
+
+    const stats = await syncTranslations(configCareful)
+
+    // No retranslation
+    expect(stats[0].updated).toBe(0)
+    expect(stats[0].translated).toBe(0)
+    expect(mockTranslateBatch).not.toHaveBeenCalled()
+
+    // Verify lock file keeps OLD value for skipped key
+    const lockFileWriteCall = vi
+      .mocked(fs.writeFile)
+      .mock.calls.find(
+        (call) => typeof call[0] === "string" && call[0].includes(".polyglot-lock.json")
+      )
+    expect(lockFileWriteCall).toBeDefined()
+    const savedLockData = JSON.parse(lockFileWriteCall![1] as string)
+    // "greeting" should keep old value "Hello" (not "Hello World")
+    expect(savedLockData.greeting).toBe("Hello")
+  })
+
+  it("should freeze keys in carefully mode (review, per-key freeze)", async () => {
+    const { askChangedKeysAction, askPerKeyAction } = await import("@/interactive")
+
+    const configCareful: SyncConfig = {
+      ...mockConfig,
+      trackChanges: TRACK_CHANGES.CAREFULLY,
+      rootDir: "."
+    }
+
+    vi.mocked(askChangedKeysAction).mockResolvedValue("review")
+    // First key: freeze, second key: retranslate
+    vi.mocked(askPerKeyAction).mockResolvedValueOnce("freeze").mockResolvedValueOnce("retranslate")
+
+    vi.mocked(utils.fileExists).mockResolvedValue(true)
+    vi.mocked(fs.readFile).mockImplementation(async (filePath) => {
+      const p = typeof filePath === "string" ? filePath : ""
+      if (p.includes("en.json")) {
+        return JSON.stringify({ greeting: "Hello World", nested: { key: "New Value" } })
+      }
+      if (p.includes("ru.json")) {
+        return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
+      }
+      if (p.includes(".polyglot-lock.json")) {
+        return JSON.stringify({
+          __frozen: [],
+          greeting: "Hello",
+          "nested.key": "Value"
+        })
+      }
+      return "{}"
+    })
+
+    mockTranslateBatch.mockResolvedValue({ "nested.key": "Новое значение" })
+
+    const stats = await syncTranslations(configCareful)
+
+    // Only nested.key retranslated, greeting frozen
+    expect(stats[0].updated).toBe(1)
+
+    // Verify lock file has "greeting" in __frozen
+    const lockFileWriteCall = vi
+      .mocked(fs.writeFile)
+      .mock.calls.find(
+        (call) => typeof call[0] === "string" && call[0].includes(".polyglot-lock.json")
+      )
+    expect(lockFileWriteCall).toBeDefined()
+    const savedLockData = JSON.parse(lockFileWriteCall![1] as string)
+    expect(savedLockData.__frozen).toContain("greeting")
   })
 })

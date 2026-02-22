@@ -11,7 +11,13 @@ import {
   openaiDefaultModel,
   anthropicDefaultModel
 } from "@/providers"
-import { API_PROVIDER, type UserConfig, type SyncConfig, LOCALE_FORMAT } from "@/interfaces"
+import {
+  API_PROVIDER,
+  TRACK_CHANGES,
+  LOCALE_FORMAT,
+  type UserConfig,
+  type SyncConfig
+} from "@/interfaces"
 
 // Register default providers
 registerProvider(API_PROVIDER.GEMINI, GeminiProvider)
@@ -21,6 +27,7 @@ registerProvider(API_PROVIDER.ANTHROPIC, AnthropicProvider)
 export interface RunOptions {
   rootDir?: string
   setup?: boolean
+  force?: boolean
 }
 
 export const run = async (options: RunOptions = {}): Promise<void> => {
@@ -100,7 +107,9 @@ export const run = async (options: RunOptions = {}): Promise<void> => {
     batchSize: config.batchSize ?? 200,
     batchDelay: config.batchDelay ?? 2000,
     retryDelay: config.retryDelay ?? 35000,
-    maxRetries: config.maxRetries ?? 3
+    maxRetries: config.maxRetries ?? 3,
+    trackChanges: config.trackChanges ?? TRACK_CHANGES.OFF,
+    forceRetranslate: options.force ?? false
   }
 
   // Run sync

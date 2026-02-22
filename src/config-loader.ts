@@ -1,6 +1,6 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { API_PROVIDER, LOCALE_FORMAT, type UserConfig } from "@/interfaces"
+import { API_PROVIDER, LOCALE_FORMAT, TRACK_CHANGES, type UserConfig } from "@/interfaces"
 import { fileExists } from "@/utils"
 
 const DEFAULT_CONFIG: UserConfig = {
@@ -9,6 +9,7 @@ const DEFAULT_CONFIG: UserConfig = {
   locales: ["EN", "RU"],
   defaultLocale: "EN",
   localesDir: "src/locale",
+  trackChanges: TRACK_CHANGES.OFF,
   envFile: ".env",
   envVarName: "POLYGLOT_API_KEY",
   batchSize: 200,

@@ -3,7 +3,7 @@ import path from "node:path"
 import readline from "node:readline"
 import { createInterface } from "node:readline/promises"
 import { stdin as input, stdout as output } from "node:process"
-import { API_PROVIDER, LOCALE_FORMAT, type UserConfig } from "@/interfaces"
+import { API_PROVIDER, LOCALE_FORMAT, TRACK_CHANGES, type UserConfig } from "@/interfaces"
 import {
   geminiDefaultModel,
   geminiModelOptions,
@@ -135,6 +135,7 @@ const selectOne = async <T>(
     const cleanup = () => {
       input.off("keypress", onKeyPress)
       input.setRawMode(false)
+      input.pause()
       output.write("\n")
     }
 
@@ -174,22 +175,22 @@ const parseLocalesInput = (raw: string): string[] => {
 }
 
 const generateConfigFile = (config: UserConfig): string => {
-  return (
-    JSON.stringify(
-      {
-        provider: config.provider,
-        model: config.model,
-        localeFormat: config.localeFormat,
-        locales: config.locales,
-        defaultLocale: config.defaultLocale,
-        localesDir: config.localesDir,
-        envFile: config.envFile || ".env",
-        envVarName: config.envVarName || "POLYGLOT_API_KEY"
-      },
-      null,
-      2
-    ) + "\n"
-  )
+  const configObj: Record<string, unknown> = {
+    provider: config.provider,
+    model: config.model,
+    localeFormat: config.localeFormat,
+    locales: config.locales,
+    defaultLocale: config.defaultLocale,
+    localesDir: config.localesDir,
+    envFile: config.envFile || ".env",
+    envVarName: config.envVarName || "POLYGLOT_API_KEY"
+  }
+
+  if (config.trackChanges && config.trackChanges !== TRACK_CHANGES.OFF) {
+    configObj.trackChanges = config.trackChanges
+  }
+
+  return JSON.stringify(configObj, null, 2) + "\n"
 }
 
 const generateEnvExample = (config: UserConfig): string => {
@@ -338,6 +339,34 @@ export const runSetupWizard = async (rootDir: string): Promise<UserConfig> => {
     exitWithError("Setup cancelled")
   }
 
+  section("Change Tracking")
+
+  const trackChanges = await selectOne<TRACK_CHANGES>(
+    "Track source value changes?",
+    [
+      {
+        value: TRACK_CHANGES.CAREFULLY,
+        label: "Carefully",
+        hint: "Review each change interactively before retranslating"
+      },
+      {
+        value: TRACK_CHANGES.ON,
+        label: "On",
+        hint: "Auto-retranslate all changed keys"
+      },
+      {
+        value: TRACK_CHANGES.OFF,
+        label: "Off",
+        hint: "Only translate new/missing keys"
+      }
+    ] as const,
+    0
+  )
+
+  if (trackChanges === null) {
+    exitWithError("Setup cancelled")
+  }
+
   // Create config
   const config: UserConfig = {
     provider: provider || API_PROVIDER.GEMINI,
@@ -346,6 +375,7 @@ export const runSetupWizard = async (rootDir: string): Promise<UserConfig> => {
     locales,
     defaultLocale: defaultLocale || "",
     localesDir: localesDir || "",
+    trackChanges: trackChanges ?? TRACK_CHANGES.OFF,
     envFile: envFile || "",
     envVarName: envVarName!
   }
@@ -393,6 +423,12 @@ export const runSetupWizard = async (rootDir: string): Promise<UserConfig> => {
   console.log(
     `  ${c.green}${icon.check}${c.reset} ${c.bold}${localesDir}/${c.reset} - Locales directory`
   )
+
+  if (trackChanges && trackChanges !== TRACK_CHANGES.OFF) {
+    console.log(
+      `  ${c.green}${icon.check}${c.reset} ${c.bold}.polyglot-lock.json${c.reset} - Will be created on first sync`
+    )
+  }
 
   console.log()
   console.log(`${c.yellow}${icon.key}${c.reset} ${c.bold}Next steps:${c.reset}`)
