@@ -191,11 +191,15 @@ describe("Sync Core", () => {
         return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
       }
       if (p.includes(".polyglot-lock.json")) {
-        // Lock file has OLD value for "greeting" (with __frozen array)
+        // Lock file has OLD value for "greeting"
         return JSON.stringify({
-          __frozen: [],
-          greeting: "Hello",
-          "nested.key": "Value"
+          json: {
+            __frozen: [],
+            values: {
+              greeting: "Hello",
+              "nested.key": "Value"
+            }
+          }
         })
       }
       return "{}"
@@ -286,9 +290,13 @@ describe("Sync Core", () => {
       if (p.includes(".polyglot-lock.json")) {
         // "greeting" is frozen — should NOT be retranslated even though it changed
         return JSON.stringify({
-          __frozen: ["greeting"],
-          greeting: "Hello",
-          "nested.key": "Value"
+          json: {
+            __frozen: ["greeting"],
+            values: {
+              greeting: "Hello",
+              "nested.key": "Value"
+            }
+          }
         })
       }
       return "{}"
@@ -325,9 +333,13 @@ describe("Sync Core", () => {
         return JSON.stringify({ greeting: "Привет", nested: { key: "Значение" } })
       if (p.includes(".polyglot-lock.json")) {
         return JSON.stringify({
-          __frozen: ["greeting"],
-          greeting: "Hello",
-          "nested.key": "Value"
+          json: {
+            __frozen: ["greeting"],
+            values: {
+              greeting: "Hello",
+              "nested.key": "Value"
+            }
+          }
         })
       }
       return "{}"
@@ -343,7 +355,7 @@ describe("Sync Core", () => {
     // ALL keys retranslated (even previously frozen greeting)
     expect(stats[0].updated).toBe(2)
 
-    // Verify lock file saved with empty __frozen
+    // Verify lock file saved with empty json.__frozen
     const lockFileWriteCall = vi
       .mocked(fs.writeFile)
       .mock.calls.find(
@@ -351,7 +363,7 @@ describe("Sync Core", () => {
       )
     expect(lockFileWriteCall).toBeDefined()
     const savedLockData = JSON.parse(lockFileWriteCall![1] as string)
-    expect(savedLockData.__frozen).toEqual([])
+    expect(savedLockData.json.__frozen).toEqual([])
   })
 
   it("should not update snapshot for skipped keys (carefully mode, skip-all)", async () => {
@@ -376,9 +388,13 @@ describe("Sync Core", () => {
       }
       if (p.includes(".polyglot-lock.json")) {
         return JSON.stringify({
-          __frozen: [],
-          greeting: "Hello",
-          "nested.key": "Value"
+          json: {
+            __frozen: [],
+            values: {
+              greeting: "Hello",
+              "nested.key": "Value"
+            }
+          }
         })
       }
       return "{}"
@@ -400,7 +416,7 @@ describe("Sync Core", () => {
     expect(lockFileWriteCall).toBeDefined()
     const savedLockData = JSON.parse(lockFileWriteCall![1] as string)
     // "greeting" should keep old value "Hello" (not "Hello World")
-    expect(savedLockData.greeting).toBe("Hello")
+    expect(savedLockData.json.values.greeting).toBe("Hello")
   })
 
   it("should freeze keys in carefully mode (review, per-key freeze)", async () => {
@@ -427,9 +443,13 @@ describe("Sync Core", () => {
       }
       if (p.includes(".polyglot-lock.json")) {
         return JSON.stringify({
-          __frozen: [],
-          greeting: "Hello",
-          "nested.key": "Value"
+          json: {
+            __frozen: [],
+            values: {
+              greeting: "Hello",
+              "nested.key": "Value"
+            }
+          }
         })
       }
       return "{}"
@@ -442,7 +462,7 @@ describe("Sync Core", () => {
     // Only nested.key retranslated, greeting frozen
     expect(stats[0].updated).toBe(1)
 
-    // Verify lock file has "greeting" in __frozen
+    // Verify lock file has "greeting" in json.__frozen
     const lockFileWriteCall = vi
       .mocked(fs.writeFile)
       .mock.calls.find(
@@ -450,6 +470,6 @@ describe("Sync Core", () => {
       )
     expect(lockFileWriteCall).toBeDefined()
     const savedLockData = JSON.parse(lockFileWriteCall![1] as string)
-    expect(savedLockData.__frozen).toContain("greeting")
+    expect(savedLockData.json.__frozen).toContain("greeting")
   })
 })

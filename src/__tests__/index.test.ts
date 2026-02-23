@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mockRunSetupWizard = vi.fn()
 const mockSyncTranslations = vi.fn()
+const mockSyncMarkdownTranslations = vi.fn()
 const mockFindConfigFile = vi.fn()
 const mockLoadConfig = vi.fn()
 const mockMergeWithDefaults = vi.fn()
@@ -18,7 +19,8 @@ vi.mock("@/setup", () => ({
 
 vi.mock("@/core", () => ({
   registerProvider: vi.fn(),
-  syncTranslations: mockSyncTranslations
+  syncTranslations: mockSyncTranslations,
+  syncMarkdownTranslations: mockSyncMarkdownTranslations
 }))
 
 vi.mock("@/config-loader", () => ({
@@ -39,6 +41,8 @@ vi.mock("@/providers", () => ({
 describe("run (runtime validation)", () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    process.env.POLYGLOT_API_KEY = "json-key"
+    process.env.POLYGLOT_MD_API_KEY = "md-key"
   })
 
   it("should require init when config file is missing", async () => {
@@ -105,5 +109,52 @@ describe("run (runtime validation)", () => {
       '❌ Invalid or deprecated config: "json" section must include provider, model, and envVarName. Please run `npx polyglot-keeper init` again.'
     )
     expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it("should route --md mode to markdown sync with markdown config", async () => {
+    mockFindConfigFile.mockResolvedValue("polyglot.config.json")
+    mockLoadConfig.mockResolvedValue({
+      envFile: ".env",
+      markdown: {
+        provider: "gemini",
+        model: "gemini-flash-latest",
+        envVarName: "POLYGLOT_MD_API_KEY",
+        contentDir: "content",
+        defaultLocale: "en",
+        locales: ["en", "ru"],
+        exclude: ["drafts/**"]
+      }
+    })
+    mockMergeWithDefaults.mockReturnValue({
+      envFile: ".env",
+      markdown: {
+        provider: "gemini",
+        model: "gemini-flash-latest",
+        envVarName: "POLYGLOT_MD_API_KEY",
+        contentDir: "content",
+        defaultLocale: "en",
+        locales: ["en", "ru"],
+        trackChanges: "off",
+        batchDelay: 2000,
+        retryDelay: 35000,
+        maxRetries: 3,
+        exclude: ["drafts/**"]
+      }
+    })
+
+    const { run } = await import("@/index")
+
+    await run({ rootDir: "E:/tmp", md: true })
+
+    expect(mockSyncTranslations).not.toHaveBeenCalled()
+    expect(mockSyncMarkdownTranslations).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rootDir: "E:/tmp",
+        contentDir: "content",
+        defaultLocale: "en",
+        locales: ["en", "ru"],
+        exclude: ["drafts/**"]
+      })
+    )
   })
 })

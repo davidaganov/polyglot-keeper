@@ -20,9 +20,15 @@ import {
   type SyncConfig
 } from "@/interfaces"
 
-export interface LockFileData {
+interface LockSectionData {
   __frozen: string[]
-  [key: string]: string | string[]
+  values: Record<string, string>
+}
+
+interface LockFileData {
+  json?: LockSectionData
+  md?: LockSectionData
+  [key: string]: unknown
 }
 
 const LOCK_FILE_NAME = ".polyglot-lock.json"
@@ -32,17 +38,12 @@ const loadLockFile = async (
 ): Promise<{ values: Record<string, string>; frozen: string[] }> => {
   if (await fileExists(lockFilePath)) {
     const content = await fs.readFile(lockFilePath, "utf-8")
-    const raw: LockFileData = JSON.parse(content)
-    const frozen = Array.isArray(raw.__frozen) ? raw.__frozen : []
-
-    const values: Record<string, string> = {}
-    for (const [k, v] of Object.entries(raw)) {
-      if (k !== "__frozen" && typeof v === "string") {
-        values[k] = v
-      }
+    const raw = JSON.parse(content) as LockFileData
+    const section = raw.json as Partial<LockSectionData> | undefined
+    return {
+      values: section?.values ?? {},
+      frozen: Array.isArray(section?.__frozen) ? section.__frozen : []
     }
-
-    return { values, frozen }
   }
 
   return { values: {}, frozen: [] }
@@ -56,18 +57,34 @@ const saveLockFile = async (
   skippedKeys: string[],
   previousValues: Record<string, string>
 ): Promise<void> => {
-  const lockData: LockFileData = { __frozen: frozen }
+  let existingRaw: LockFileData = {}
+  if (await fileExists(lockFilePath)) {
+    try {
+      existingRaw = JSON.parse(await fs.readFile(lockFilePath, "utf-8")) as LockFileData
+    } catch {
+      existingRaw = {}
+    }
+  }
+
+  const jsonValues: Record<string, string> = {}
   const skippedSet = new Set(skippedKeys)
 
   for (const key of sourceKeys) {
     if (skippedSet.has(key) && previousValues[key] !== undefined) {
-      // Skipped keys keep their OLD snapshot value (will be detected as changed again next time)
-      lockData[key] = previousValues[key]
+      jsonValues[key] = previousValues[key]
     } else {
       const value = getNestedValue(sourceData, key)
       if (value !== undefined) {
-        lockData[key] = value
+        jsonValues[key] = value
       }
+    }
+  }
+
+  const lockData: LockFileData = {
+    ...existingRaw,
+    json: {
+      __frozen: frozen,
+      values: jsonValues
     }
   }
 

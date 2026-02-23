@@ -92,4 +92,56 @@ describe("setup/config-writer", () => {
 
     expect(parsed.markdown.trackChanges).toBeUndefined()
   })
+
+  it("should serialize exclude array for markdown when present", () => {
+    const config: UserConfig = {
+      envFile: ".env",
+      markdown: {
+        provider: "gemini" as any,
+        model: "gemini-flash-latest",
+        envVarName: "POLYGLOT_MD_API_KEY",
+        contentDir: "content",
+        defaultLocale: "en",
+        locales: ["en", "ru"],
+        exclude: ["drafts/**", "private/**", "README.md"]
+      }
+    }
+
+    const parsed = JSON.parse(generateConfigFile(config))
+
+    expect(parsed.markdown.exclude).toEqual(["drafts/**", "private/**", "README.md"])
+  })
+
+  it("should omit exclude when it is empty array or undefined", () => {
+    const configWithEmpty: UserConfig = {
+      envFile: ".env",
+      markdown: {
+        provider: "gemini" as any,
+        model: "gemini-flash-latest",
+        envVarName: "POLYGLOT_MD_API_KEY",
+        contentDir: "content",
+        defaultLocale: "en",
+        locales: ["en", "ru"],
+        exclude: []
+      }
+    }
+
+    const configWithUndefined: UserConfig = {
+      envFile: ".env",
+      markdown: {
+        provider: "gemini" as any,
+        model: "gemini-flash-latest",
+        envVarName: "POLYGLOT_MD_API_KEY",
+        contentDir: "content",
+        defaultLocale: "en",
+        locales: ["en", "ru"]
+      }
+    }
+
+    const parsedEmpty = JSON.parse(generateConfigFile(configWithEmpty))
+    const parsedUndefined = JSON.parse(generateConfigFile(configWithUndefined))
+
+    expect(parsedEmpty.markdown.exclude).toBeUndefined()
+    expect(parsedUndefined.markdown.exclude).toBeUndefined()
+  })
 })
