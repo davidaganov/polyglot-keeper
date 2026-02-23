@@ -1,6 +1,6 @@
 {
   "name": "polyglot-keeper",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "AI-powered i18n synchronization tool that automatically translates missing keys and maintains perfect structural consistency across all locale files.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
