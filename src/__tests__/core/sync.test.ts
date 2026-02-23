@@ -29,9 +29,11 @@ vi.mock("@/interactive", () => ({
 
 // Mock Provider
 const mockTranslateBatch = vi.fn()
+const mockTranslateText = vi.fn()
 class MockProvider implements TranslationProvider {
   name = "Mock"
   translateBatch = mockTranslateBatch
+  translateText = mockTranslateText
 }
 
 describe("Sync Core", () => {

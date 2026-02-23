@@ -1,17 +1,33 @@
 import { buildTranslationPrompt, parseApiResponse } from "@/utils"
 import { TranslationProvider, TranslationBatch } from "@/interfaces"
 
+/** Default OpenAI model. */
 export const openaiDefaultModel = "gpt-4o-mini"
 
+/**
+ * Available OpenAI model options for setup wizard.
+ */
 export const openaiModelOptions = [
   { value: "gpt-4o-mini", label: "GPT-4o mini", hint: "Fast & affordable" },
   { value: "gpt-4o", label: "GPT-4o", hint: "Balanced quality" },
   { value: "gpt-4.1", label: "GPT-4.1", hint: "Higher quality" }
 ] as const
 
+/**
+ * OpenAI translation provider implementation.
+ * Uses OpenAI API for batch translations.
+ */
 export class OpenAIProvider implements TranslationProvider {
+  /**
+   * Provider name.
+   */
   name = "OpenAI"
 
+  /**
+   * Creates a new instance of OpenAIProvider.
+   * @param apiKey OpenAI API key.
+   * @param model OpenAI model to use for translations.
+   */
   constructor(
     private apiKey: string,
     private model: string

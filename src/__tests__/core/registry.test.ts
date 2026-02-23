@@ -11,6 +11,9 @@ class MockProvider implements TranslationProvider {
   async translateBatch(batch: TranslationBatch): Promise<TranslationBatch> {
     return batch
   }
+  async translateText(text: string, _targetLang: string): Promise<string> {
+    return text
+  }
 }
 
 describe("Registry", () => {

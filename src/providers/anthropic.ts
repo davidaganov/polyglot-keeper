@@ -1,17 +1,34 @@
 import { buildTranslationPrompt, parseApiResponse } from "@/utils"
 import { TranslationProvider, TranslationBatch } from "@/interfaces"
 
+/** Default Anthropic model. */
 export const anthropicDefaultModel = "claude-sonnet-4-5"
 
+/**
+ * Available Anthropic model options for setup wizard.
+ */
 export const anthropicModelOptions = [
   { value: "claude-haiku-4-5", label: "Claude Haiku 4.5", hint: "Fastest & cheapest" },
   { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5", hint: "Best balance" },
   { value: "claude-opus-4-5", label: "Claude Opus 4.5", hint: "Highest quality" }
 ] as const
 
+/**
+ * Anthropic translation provider implementation.
+ * Uses Claude API for batch translations.
+ */
 export class AnthropicProvider implements TranslationProvider {
+  /**
+   * Provider name.
+   */
   name = "Anthropic"
 
+  /**
+   * Creates a new AnthropicProvider instance.
+   *
+   * @param apiKey - Anthropic API key.
+   * @param model - Anthropic model to use for translations.
+   */
   constructor(
     private apiKey: string,
     private model: string

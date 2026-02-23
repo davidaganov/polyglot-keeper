@@ -1,28 +1,11 @@
 import readline from "node:readline"
 import { stdin as input, stdout as output } from "node:process"
-
-const c = {
-  reset: "\x1b[0m",
-  bold: "\x1b[1m",
-  dim: "\x1b[2m",
-  red: "\x1b[31m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  cyan: "\x1b[36m",
-  gray: "\x1b[90m",
-  bgBlue: "\x1b[44m",
-  white: "\x1b[37m"
-} as const
-
-const icon = {
-  pointer: "▸",
-  lock: "🔒",
-  key: "🔑"
-} as const
+import { c, icon } from "@/utils/styles"
 
 export type GlobalAction = "retranslate-all" | "skip-all" | "review"
 export type PerKeyAction = "retranslate" | "skip" | "freeze"
 
+/** Option for select menu. */
 interface SelectOption<T> {
   value: T
   label: string
@@ -125,6 +108,12 @@ const inlineSelect = async <T>(
   })
 }
 
+/**
+ * Prompts user to select action for changed keys.
+ * @param changedCount - Number of changed keys.
+ * @param frozenCount - Number of frozen keys.
+ * @returns Selected action.
+ */
 export const askChangedKeysAction = async (
   changedCount: number,
   frozenCount: number
@@ -163,6 +152,15 @@ export const askChangedKeysAction = async (
   )
 }
 
+/**
+ * Prompts user to select action for a specific key.
+ * @param key - Translation key.
+ * @param oldValue - Previous value.
+ * @param newValue - New value.
+ * @param current - Current key index.
+ * @param total - Total keys count.
+ * @returns Selected action.
+ */
 export const askPerKeyAction = async (
   key: string,
   oldValue: string,

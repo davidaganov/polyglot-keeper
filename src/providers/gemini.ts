@@ -1,8 +1,10 @@
 import { buildTranslationPrompt, parseApiResponse } from "@/utils"
 import { TranslationProvider, TranslationBatch } from "@/interfaces"
 
+/** Default Gemini model. */
 export const geminiDefaultModel = "gemini-flash-latest"
 
+/** Available Gemini model options for setup wizard. */
 export const geminiModelOptions = [
   {
     value: "gemini-flash-latest",
@@ -21,9 +23,22 @@ export const geminiModelOptions = [
   }
 ] as const
 
+/**
+ * Gemini translation provider implementation.
+ * Uses Google Gemini API for batch translations.
+ */
 export class GeminiProvider implements TranslationProvider {
+  /**
+   * Provider name.
+   */
   name = "Gemini"
 
+  /**
+   * Creates a new instance of the GeminiProvider.
+   *
+   * @param apiKey - Google Gemini API key.
+   * @param model - Gemini model to use for translations.
+   */
   constructor(
     private apiKey: string,
     private model: string

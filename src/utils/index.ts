@@ -2,6 +2,12 @@ import fs from "node:fs/promises"
 import { TRANSLATION_PROMPT } from "@/core"
 import { type JSONObject, type TranslationBatch } from "@/interfaces"
 
+/**
+ * Extracts all keys from a nested JSON object as flat array.
+ * @param obj - Object to extract keys from.
+ * @param prefix - Key prefix for nested values.
+ * @returns Array of dot-notation keys.
+ */
 export const extractKeys = (obj: JSONObject, prefix = ""): string[] => {
   return Object.entries(obj).reduce<string[]>((acc, [key, val]) => {
     const fullKey = prefix ? `${prefix}.${key}` : key
@@ -16,6 +22,12 @@ export const extractKeys = (obj: JSONObject, prefix = ""): string[] => {
   }, [])
 }
 
+/**
+ * Gets a nested value from an object using dot notation.
+ * @param obj - Object to search.
+ * @param key - Dot-notation key (e.g. "a.b.c").
+ * @returns Value at key or undefined.
+ */
 export const getNestedValue = (obj: JSONObject, key: string): string | undefined => {
   const parts = key.split(".")
   let current: any = obj
@@ -30,6 +42,12 @@ export const getNestedValue = (obj: JSONObject, key: string): string | undefined
   return typeof current === "string" ? current : undefined
 }
 
+/**
+ * Sets a nested value in an object using dot notation.
+ * @param obj - Object to modify.
+ * @param key - Dot-notation key.
+ * @param value - Value to set.
+ */
 export const setNestedValue = (obj: JSONObject, key: string, value: string | JSONObject): void => {
   const parts = key.split(".")
   const last = parts.pop()!
@@ -45,6 +63,11 @@ export const setNestedValue = (obj: JSONObject, key: string, value: string | JSO
   current[last] = value
 }
 
+/**
+ * Deletes a nested key from an object.
+ * @param obj - Object to modify.
+ * @param key - Dot-notation key to delete.
+ */
 export const deleteNestedKey = (obj: JSONObject, key: string): void => {
   const parts = key.split(".")
   const last = parts.pop()!
@@ -61,6 +84,10 @@ export const deleteNestedKey = (obj: JSONObject, key: string): void => {
   cleanupEmptyObjects(obj)
 }
 
+/**
+ * Removes empty objects from a nested structure.
+ * @param obj - Object to clean.
+ */
 export const cleanupEmptyObjects = (obj: JSONObject): void => {
   for (const key in obj) {
     const val = obj[key]
@@ -73,6 +100,11 @@ export const cleanupEmptyObjects = (obj: JSONObject): void => {
   }
 }
 
+/**
+ * Checks if a file exists.
+ * @param filePath - Path to check.
+ * @returns True if file exists.
+ */
 export const fileExists = async (filePath: string): Promise<boolean> => {
   try {
     await fs.access(filePath)
@@ -82,9 +114,20 @@ export const fileExists = async (filePath: string): Promise<boolean> => {
   }
 }
 
+/**
+ * Pauses execution for specified milliseconds.
+ * @param ms - Milliseconds to sleep.
+ * @returns Promise that resolves after delay.
+ */
 export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * Reorders target object keys to match source structure.
+ * @param source - Source object with desired key order.
+ * @param target - Target object to reorder.
+ * @returns New object with keys in source order.
+ */
 export const reorderToMatchSource = (source: JSONObject, target: JSONObject): JSONObject => {
   const result: JSONObject = {}
 
@@ -111,6 +154,12 @@ export const reorderToMatchSource = (source: JSONObject, target: JSONObject): JS
   return result
 }
 
+/**
+ * Removes keys from target that don't exist in source.
+ * @param targetData - Target object to clean.
+ * @param enKeys - Array of valid keys.
+ * @returns Number of removed keys.
+ */
 export const removeObsoleteKeys = (targetData: JSONObject, enKeys: string[]): number => {
   const targetKeys = extractKeys(targetData)
   const enKeysSet = new Set(enKeys)
@@ -126,6 +175,12 @@ export const removeObsoleteKeys = (targetData: JSONObject, enKeys: string[]): nu
   return removed
 }
 
+/**
+ * Builds translation prompt for API call.
+ * @param batch - Key-value pairs to translate.
+ * @param targetLang - Target language code.
+ * @returns Formatted prompt string.
+ */
 export const buildTranslationPrompt = (batch: TranslationBatch, targetLang: string): string => {
   return TRANSLATION_PROMPT.replace("{targetLang}", targetLang).replace(
     "{jsonBatch}",
@@ -133,6 +188,11 @@ export const buildTranslationPrompt = (batch: TranslationBatch, targetLang: stri
   )
 }
 
+/**
+ * Parses API response text into translation batch.
+ * @param text - Raw API response text.
+ * @returns Parsed key-value translation object.
+ */
 export const parseApiResponse = (text: string): TranslationBatch => {
   if (!text) {
     throw new Error("Empty response from API")

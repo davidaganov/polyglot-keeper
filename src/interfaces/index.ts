@@ -20,19 +20,9 @@ export type JSONObject = Record<string, unknown>
 export type TranslationBatch = Record<string, string>
 
 export interface UserConfig {
-  provider: API_PROVIDER
-  localeFormat: LOCALE_FORMAT
-  locales: string[]
-  defaultLocale: string
-  localesDir: string
-  trackChanges?: TRACK_CHANGES
   envFile?: string
-  envVarName?: string
-  model?: string
-  batchSize?: number
-  batchDelay?: number
-  retryDelay?: number
-  maxRetries?: number
+  json?: JsonConfig
+  markdown?: MarkdownConfig
 }
 
 export interface SyncConfig {
@@ -69,4 +59,33 @@ export interface TranslationStats {
 export interface TranslationProvider {
   name: string
   translateBatch(batch: TranslationBatch, targetLang: string): Promise<TranslationBatch>
+}
+
+export interface JsonConfig {
+  localeFormat: LOCALE_FORMAT
+  locales: string[]
+  defaultLocale: string
+  localesDir: string
+  provider?: API_PROVIDER
+  model?: string
+  envVarName?: string
+  trackChanges?: TRACK_CHANGES
+  batchSize?: number
+  batchDelay?: number
+  retryDelay?: number
+  maxRetries?: number
+}
+
+export interface MarkdownConfig {
+  contentDir: string
+  defaultLocale: string
+  locales: string[]
+  trackChanges?: TRACK_CHANGES
+  provider?: API_PROVIDER
+  model?: string
+  envVarName?: string
+  batchSize?: number
+  batchDelay?: number
+  retryDelay?: number
+  maxRetries?: number
 }

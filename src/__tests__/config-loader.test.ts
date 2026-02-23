@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import fs from "node:fs/promises"
 import { loadConfig, findConfigFile, mergeWithDefaults } from "@/config-loader"
 import * as utils from "@/utils"
+import { LOCALE_FORMAT } from "@/interfaces"
 
 vi.mock("node:fs/promises")
 vi.mock("@/utils", async () => {
@@ -35,7 +36,18 @@ describe("Config Loader", () => {
 
   describe("loadConfig", () => {
     it("should load and parse config", async () => {
-      const mockConfig = { localeFormat: "short" }
+      const mockConfig = {
+        envFile: ".env",
+        json: {
+          provider: "gemini",
+          model: "gemini-flash-latest",
+          envVarName: "POLYGLOT_API_KEY",
+          localeFormat: "short",
+          locales: ["EN", "RU"],
+          defaultLocale: "EN",
+          localesDir: "src/i18n"
+        }
+      }
       vi.mocked(utils.fileExists).mockResolvedValue(true)
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(mockConfig))
 
@@ -46,11 +58,20 @@ describe("Config Loader", () => {
 
   describe("mergeWithDefaults", () => {
     it("should merge user config with defaults", () => {
-      const userConfig: any = { localeFormat: "pair" }
+      const userConfig = {
+        json: {
+          localeFormat: LOCALE_FORMAT.PAIR,
+          locales: ["en"],
+          defaultLocale: "en",
+          localesDir: "locales"
+        }
+      }
       const merged = mergeWithDefaults(userConfig)
 
-      expect(merged.localeFormat).toBe("pair")
-      expect(merged.batchSize).toBeDefined()
+      expect(merged.json?.localeFormat).toBe(LOCALE_FORMAT.PAIR)
+      expect(merged.json?.batchSize).toBeDefined()
+      expect(merged.json?.retryDelay).toBe(35000)
+      expect(merged.json?.maxRetries).toBe(3)
     })
   })
 })

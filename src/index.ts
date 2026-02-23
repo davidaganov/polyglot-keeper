@@ -28,19 +28,26 @@ export interface RunOptions {
   rootDir?: string
   setup?: boolean
   force?: boolean
+  md?: boolean
 }
 
 export const run = async (options: RunOptions = {}): Promise<void> => {
   const rootDir = options.rootDir ?? process.cwd()
+  const isMarkdownMode = options.md ?? false
 
   // Check for config
   const configPath = await findConfigFile(rootDir)
   let userConfig: UserConfig | null = null
 
-  if (options.setup || !configPath) {
+  if (options.setup) {
     // Run setup wizard and exit - don't auto-sync after init
     await runSetupWizard(rootDir)
     return
+  }
+
+  if (!configPath) {
+    console.error("❌ No configuration found. Run `npx polyglot-keeper init` first.")
+    process.exit(1)
   }
 
   // Load existing config
@@ -53,32 +60,54 @@ export const run = async (options: RunOptions = {}): Promise<void> => {
   }
 
   if (!userConfig) {
-    console.error("❌ No configuration found. Run with --setup flag to create one.")
+    console.error("❌ No configuration found. Run `npx polyglot-keeper init` first.")
     process.exit(1)
   }
 
   // Merge with defaults
   const config = mergeWithDefaults(userConfig)
 
+  const modeConfig = isMarkdownMode ? config.markdown : config.json
+  const modeName = isMarkdownMode ? "markdown" : "json"
+
+  if (!modeConfig) {
+    console.error(
+      `❌ Invalid or deprecated config: missing "${modeName}" section in polyglot.config.json. Please run \`npx polyglot-keeper init\` again.`
+    )
+    process.exit(1)
+  }
+
+  if (!modeConfig.provider || !modeConfig.model || !modeConfig.envVarName) {
+    console.error(
+      `❌ Invalid or deprecated config: "${modeName}" section must include provider, model, and envVarName. Please run \`npx polyglot-keeper init\` again.`
+    )
+    process.exit(1)
+  }
+
+  const modeProvider = modeConfig.provider
+  const modeModel = modeConfig.model
+  const modeEnvVar = modeConfig.envVarName
+
   // Load environment variables
   const envPath = path.resolve(rootDir, config.envFile || ".env")
   dotenv.config({ path: envPath })
 
   // Get API key
-  const apiKey = process.env[config.envVarName || "POLYGLOT_API_KEY"]
+  const apiKey = process.env[modeEnvVar]
   if (!apiKey) {
     console.error(
-      `❌ Error: ${config.envVarName || "POLYGLOT_API_KEY"} environment variable is not set in ${config.envFile || ".env"}`
+      `❌ Error: ${modeEnvVar} environment variable is not set in ${config.envFile || ".env"}`
     )
     process.exit(1)
   }
 
   // Prepare sync config
-  const langDir = path.resolve(rootDir, config.localesDir)
-  const defaultLanguage = config.defaultLocale
+  const jsonConfig = config.json
+  const langDir = path.resolve(rootDir, jsonConfig?.localesDir ?? "src/locale")
+  const defaultLanguage = jsonConfig?.defaultLocale ?? "EN"
 
   const getLocaleFileName = (localeCode: string): string => {
-    if (config.localeFormat === LOCALE_FORMAT.PAIR) {
+    if (jsonConfig?.localeFormat === LOCALE_FORMAT.PAIR) {
       return `${localeCode}-${localeCode.toLowerCase()}.json`
     }
     return `${localeCode.toLowerCase()}.json`
@@ -97,19 +126,23 @@ export const run = async (options: RunOptions = {}): Promise<void> => {
   }
 
   const syncConfig: SyncConfig = {
-    ...config,
     apiKey,
     rootDir,
     langDir,
     primaryLocaleFile: path.join(langDir, getLocaleFileName(defaultLanguage)),
     defaultLanguage,
-    model: config.model ?? getDefaultModel(config.provider),
-    batchSize: config.batchSize ?? 200,
-    batchDelay: config.batchDelay ?? 2000,
-    retryDelay: config.retryDelay ?? 35000,
-    maxRetries: config.maxRetries ?? 3,
-    trackChanges: config.trackChanges ?? TRACK_CHANGES.OFF,
-    forceRetranslate: options.force ?? false
+    provider: modeProvider,
+    model: modeModel || getDefaultModel(modeProvider),
+    localeFormat: jsonConfig?.localeFormat ?? LOCALE_FORMAT.SHORT,
+    locales: jsonConfig?.locales ?? ["EN", "RU"],
+    defaultLocale: jsonConfig?.defaultLocale ?? "EN",
+    localesDir: jsonConfig?.localesDir ?? "src/locale",
+    trackChanges: jsonConfig?.trackChanges ?? TRACK_CHANGES.OFF,
+    forceRetranslate: options.force ?? false,
+    batchSize: modeConfig.batchSize ?? 200,
+    batchDelay: modeConfig.batchDelay ?? 2000,
+    retryDelay: modeConfig.retryDelay ?? 35000,
+    maxRetries: modeConfig.maxRetries ?? 3
   }
 
   // Run sync
