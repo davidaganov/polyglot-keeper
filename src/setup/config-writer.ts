@@ -60,6 +60,9 @@ export const generateConfigFile = (config: UserConfig): string => {
     if (typeof config.markdown.maxRetries === "number") {
       mdSection.maxRetries = config.markdown.maxRetries
     }
+    if (config.markdown.exclude && config.markdown.exclude.length > 0) {
+      mdSection.exclude = config.markdown.exclude
+    }
 
     configObj.markdown = mdSection
   }

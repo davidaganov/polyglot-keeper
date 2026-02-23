@@ -1,7 +1,7 @@
 import path from "node:path"
 import dotenv from "dotenv"
 import { runSetupWizard } from "@/setup"
-import { registerProvider, syncTranslations } from "@/core"
+import { registerProvider, syncTranslations, syncMarkdownTranslations } from "@/core"
 import { loadConfig, mergeWithDefaults, findConfigFile } from "@/config-loader"
 import {
   GeminiProvider,
@@ -16,7 +16,10 @@ import {
   TRACK_CHANGES,
   LOCALE_FORMAT,
   type UserConfig,
-  type SyncConfig
+  type SyncConfig,
+  type JsonConfig,
+  type MarkdownConfig,
+  type MarkdownSyncConfig
 } from "@/interfaces"
 
 // Register default providers
@@ -29,6 +32,81 @@ export interface RunOptions {
   setup?: boolean
   force?: boolean
   md?: boolean
+}
+
+const getDefaultModel = (provider: API_PROVIDER): string => {
+  switch (provider) {
+    case API_PROVIDER.OPENAI:
+      return openaiDefaultModel
+    case API_PROVIDER.ANTHROPIC:
+      return anthropicDefaultModel
+    case API_PROVIDER.GEMINI:
+    default:
+      return geminiDefaultModel
+  }
+}
+
+const getLocaleFileName = (localeCode: string, format: LOCALE_FORMAT): string => {
+  if (format === LOCALE_FORMAT.PAIR) {
+    return `${localeCode}-${localeCode.toLowerCase()}.json`
+  }
+  return `${localeCode.toLowerCase()}.json`
+}
+
+const buildJsonSyncConfig = (
+  rootDir: string,
+  apiKey: string,
+  jsonConfig: JsonConfig,
+  forceRetranslate: boolean
+): SyncConfig => {
+  const langDir = path.resolve(rootDir, jsonConfig.localesDir)
+  const defaultLanguage = jsonConfig.defaultLocale
+
+  return {
+    apiKey,
+    rootDir,
+    langDir,
+    primaryLocaleFile: path.join(
+      langDir,
+      getLocaleFileName(defaultLanguage, jsonConfig.localeFormat)
+    ),
+    defaultLanguage,
+    provider: jsonConfig.provider!,
+    model: jsonConfig.model || getDefaultModel(jsonConfig.provider!),
+    localeFormat: jsonConfig.localeFormat,
+    locales: jsonConfig.locales,
+    defaultLocale: jsonConfig.defaultLocale,
+    localesDir: jsonConfig.localesDir,
+    trackChanges: jsonConfig.trackChanges ?? TRACK_CHANGES.OFF,
+    forceRetranslate,
+    batchSize: jsonConfig.batchSize ?? 200,
+    batchDelay: jsonConfig.batchDelay ?? 2000,
+    retryDelay: jsonConfig.retryDelay ?? 35000,
+    maxRetries: jsonConfig.maxRetries ?? 3
+  }
+}
+
+const buildMarkdownSyncConfig = (
+  rootDir: string,
+  apiKey: string,
+  markdownConfig: MarkdownConfig,
+  forceRetranslate: boolean
+): MarkdownSyncConfig => {
+  return {
+    apiKey,
+    rootDir,
+    contentDir: markdownConfig.contentDir,
+    defaultLocale: markdownConfig.defaultLocale,
+    locales: markdownConfig.locales,
+    provider: markdownConfig.provider!,
+    model: markdownConfig.model || getDefaultModel(markdownConfig.provider!),
+    trackChanges: markdownConfig.trackChanges ?? TRACK_CHANGES.OFF,
+    forceRetranslate,
+    batchDelay: markdownConfig.batchDelay ?? 2000,
+    retryDelay: markdownConfig.retryDelay ?? 35000,
+    maxRetries: markdownConfig.maxRetries ?? 3,
+    exclude: markdownConfig.exclude
+  }
 }
 
 export const run = async (options: RunOptions = {}): Promise<void> => {
@@ -84,8 +162,6 @@ export const run = async (options: RunOptions = {}): Promise<void> => {
     process.exit(1)
   }
 
-  const modeProvider = modeConfig.provider
-  const modeModel = modeConfig.model
   const modeEnvVar = modeConfig.envVarName
 
   // Load environment variables
@@ -101,53 +177,23 @@ export const run = async (options: RunOptions = {}): Promise<void> => {
     process.exit(1)
   }
 
-  // Prepare sync config
-  const jsonConfig = config.json
-  const langDir = path.resolve(rootDir, jsonConfig?.localesDir ?? "src/locale")
-  const defaultLanguage = jsonConfig?.defaultLocale ?? "EN"
-
-  const getLocaleFileName = (localeCode: string): string => {
-    if (jsonConfig?.localeFormat === LOCALE_FORMAT.PAIR) {
-      return `${localeCode}-${localeCode.toLowerCase()}.json`
-    }
-    return `${localeCode.toLowerCase()}.json`
-  }
-
-  const getDefaultModel = (provider: API_PROVIDER): string => {
-    switch (provider) {
-      case API_PROVIDER.OPENAI:
-        return openaiDefaultModel
-      case API_PROVIDER.ANTHROPIC:
-        return anthropicDefaultModel
-      case API_PROVIDER.GEMINI:
-      default:
-        return geminiDefaultModel
-    }
-  }
-
-  const syncConfig: SyncConfig = {
-    apiKey,
-    rootDir,
-    langDir,
-    primaryLocaleFile: path.join(langDir, getLocaleFileName(defaultLanguage)),
-    defaultLanguage,
-    provider: modeProvider,
-    model: modeModel || getDefaultModel(modeProvider),
-    localeFormat: jsonConfig?.localeFormat ?? LOCALE_FORMAT.SHORT,
-    locales: jsonConfig?.locales ?? ["EN", "RU"],
-    defaultLocale: jsonConfig?.defaultLocale ?? "EN",
-    localesDir: jsonConfig?.localesDir ?? "src/locale",
-    trackChanges: jsonConfig?.trackChanges ?? TRACK_CHANGES.OFF,
-    forceRetranslate: options.force ?? false,
-    batchSize: modeConfig.batchSize ?? 200,
-    batchDelay: modeConfig.batchDelay ?? 2000,
-    retryDelay: modeConfig.retryDelay ?? 35000,
-    maxRetries: modeConfig.maxRetries ?? 3
-  }
-
   // Run sync
   try {
-    await syncTranslations(syncConfig)
+    if (isMarkdownMode) {
+      await syncMarkdownTranslations(
+        buildMarkdownSyncConfig(
+          rootDir,
+          apiKey,
+          modeConfig as MarkdownConfig,
+          options.force ?? false
+        )
+      )
+      return
+    }
+
+    await syncTranslations(
+      buildJsonSyncConfig(rootDir, apiKey, modeConfig as JsonConfig, options.force ?? false)
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("🚨 Fatal error:", message)

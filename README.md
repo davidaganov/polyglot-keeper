@@ -96,7 +96,8 @@ Your setup is managed via `polyglot.config.json`.
     "batchSize": 200,
     "batchDelay": 2000,
     "retryDelay": 35000,
-    "maxRetries": 3
+    "maxRetries": 3,
+    "exclude": ["drafts/**", "private/**", "README.md"]
   }
 }
 ```
@@ -117,6 +118,39 @@ By default, the tool only translates missing keys. You can enable `trackChanges`
 - `"carefully"` — Interactive review. The CLI will prompt you for each changed key to either retranslate, skip, or freeze it.
 
 > **Note:** Enabling tracking creates a `.polyglot-lock.json` file. Freezing a key locks it from future retranslations (useful for manual overrides). Use `sync --force` to clear frozen keys.
+
+`.polyglot-lock.json` uses sectioned storage:
+
+```json
+{
+  "json": {
+    "__frozen": ["some.key"],
+    "values": {
+      "some.key": "Source snapshot value"
+    }
+  },
+  "md": {
+    "__frozen": ["docs/readme.md"],
+    "values": {
+      "docs/readme.md": "<sha256 hash>"
+    }
+  }
+}
+```
+
+### Markdown Exclusions
+
+When syncing Markdown files (`sync --md`), you can exclude specific files or directories from translation by adding an `exclude` array to your `markdown` config. Patterns support glob-style matching:
+
+```json
+{
+  "markdown": {
+    "exclude": ["drafts/**", "private/**", "README.md", "**/*.draft.md"]
+  }
+}
+```
+
+This is useful for excluding draft content, private notes, or files that shouldn't be translated.
 
 ---
 

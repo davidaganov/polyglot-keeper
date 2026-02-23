@@ -47,6 +47,22 @@ export interface SyncConfig {
   maxRetries: number
 }
 
+export interface MarkdownSyncConfig {
+  apiKey: string
+  rootDir: string
+  contentDir: string
+  defaultLocale: string
+  locales: string[]
+  provider: API_PROVIDER
+  model: string
+  trackChanges: TRACK_CHANGES
+  forceRetranslate: boolean
+  batchDelay: number
+  retryDelay: number
+  maxRetries: number
+  exclude?: string[]
+}
+
 export interface TranslationStats {
   locale: string
   missingKeys: number
@@ -88,4 +104,5 @@ export interface MarkdownConfig {
   batchDelay?: number
   retryDelay?: number
   maxRetries?: number
+  exclude?: string[]
 }
