@@ -188,4 +188,4 @@ npm run build
 
 ## 📄 License
 
-MIT © David Aganov
+MIT © [David Aganov](https://aganov.dev/en)
