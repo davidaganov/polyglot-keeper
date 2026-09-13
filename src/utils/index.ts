@@ -1,6 +1,7 @@
-import fs from "node:fs/promises"
 import { TRANSLATION_PROMPT } from "@/core"
 import { type JSONObject, type TranslationBatch } from "@/interfaces"
+
+export { fileExists } from "@/utils/fs"
 
 /**
  * Extracts all keys from a nested JSON object as flat array.
@@ -97,20 +98,6 @@ export const cleanupEmptyObjects = (obj: JSONObject): void => {
         delete obj[key]
       }
     }
-  }
-}
-
-/**
- * Checks if a file exists.
- * @param filePath - Path to check.
- * @returns True if file exists.
- */
-export const fileExists = async (filePath: string): Promise<boolean> => {
-  try {
-    await fs.access(filePath)
-    return true
-  } catch {
-    return false
   }
 }
 

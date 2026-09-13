@@ -5,7 +5,7 @@ import pluginPrettier from "eslint-plugin-prettier"
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "bin/**"]
+    ignores: ["dist/**", "node_modules/**", "bin/**", "project-test/**"]
   },
 
   js.configs.recommended,
