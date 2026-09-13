@@ -10,6 +10,7 @@ description: >-
 # Polyglot Keeper Skill
 
 Polyglot Keeper is a dual-mode internationalization (i18n) solution:
+
 1. **CLI Mode**: Offline synchronization of static JSON and Markdown locale files using AI (Gemini, OpenAI, Anthropic).
 2. **Runtime API**: Dynamic, on-the-fly translation of strings, arrays, and complex nested objects in web applications and backend services with in-memory caching.
 
@@ -20,6 +21,7 @@ Polyglot Keeper is a dual-mode internationalization (i18n) solution:
 When writing code that uses `polyglot-keeper/runtime`, **always** choose the correct architectural mode:
 
 ### Mode A: Direct Mode (Server-side / Node.js / SSR / CLI scripts)
+
 - **Environment**: Node.js backend, SSR render (Nuxt server, Astro SSR, Next.js server actions), CLI scripts.
 - **Security**: The API key is stored safely on the server (e.g. `process.env.GEMINI_API_KEY`).
 - **Imports**:
@@ -32,13 +34,14 @@ When writing code that uses `polyglot-keeper/runtime`, **always** choose the cor
   polyglot.init({
     provider: API_PROVIDER.GEMINI,
     apiKey: process.env.GEMINI_API_KEY!,
-    defaultTargetLocale: "ru",      // default target locale
-    cache: true,                     // enabled by default
-    cacheTTL: 1000 * 60 * 60 * 24    // optional TTL in ms (default: 24 hours)
+    defaultTargetLocale: "ru", // default target locale
+    cache: true, // enabled by default
+    cacheTTL: 1000 * 60 * 60 * 24 // optional TTL in ms (default: 24 hours)
   })
   ```
 
 ### Mode B: Proxy Mode (Browser / Client-Side SPA / Vue / React)
+
 - **Environment**: Client-side browser bundle, SPA, mobile web.
 - **CRITICAL SECURITY RULE**: **NEVER** put the AI `apiKey` in client-side code (`VITE_*`, `NUXT_PUBLIC_*`, or hardcoded). The API key must remain strictly on the backend.
 - **Client Imports**:
@@ -48,7 +51,7 @@ When writing code that uses `polyglot-keeper/runtime`, **always** choose the cor
 - **Client Initialization**:
   ```ts
   polyglot.init({
-    endpoint: "/api/translate",      // backend proxy endpoint
+    endpoint: "/api/translate", // backend proxy endpoint
     defaultTargetLocale: "ru"
   })
   ```
@@ -56,6 +59,7 @@ When writing code that uses `polyglot-keeper/runtime`, **always** choose the cor
   Create a backend endpoint that acts as the proxy bridge using `createTranslateHandler`:
 
   **Nuxt 3** (`server/api/translate.post.ts`):
+
   ```ts
   import { createTranslateHandler, API_PROVIDER } from "polyglot-keeper/runtime"
 
@@ -71,6 +75,7 @@ When writing code that uses `polyglot-keeper/runtime`, **always** choose the cor
   ```
 
   **Astro** (`src/pages/api/translate.ts`):
+
   ```ts
   import type { APIRoute } from "astro"
   import { createTranslateHandler, API_PROVIDER } from "polyglot-keeper/runtime"
@@ -94,7 +99,9 @@ When writing code that uses `polyglot-keeper/runtime`, **always** choose the cor
 ## 2. Runtime API Usage Patterns
 
 ### 2.1 Single String: `polyglot.t()`
+
 Translates a single string into the target locale.
+
 ```ts
 // Using defaultTargetLocale configured during init:
 const greeting = await polyglot.t("Hello, how are you?")
@@ -104,17 +111,18 @@ const greetingRu = await polyglot.t("Hello, how are you?", { to: "ru" })
 ```
 
 ### 2.2 Array of Strings: `polyglot.translate()`
+
 Translates multiple strings in a single batch call.
+
 ```ts
-const tags = await polyglot.translate(
-  ["Technology", "Design", "Business"],
-  { to: "ru" }
-)
+const tags = await polyglot.translate(["Technology", "Design", "Business"], { to: "ru" })
 // → ["Технологии", "Дизайн", "Бизнес"]
 ```
 
 ### 2.3 Nested Objects (Type-Safe): `polyglot.translate()`
+
 Recursively traverses all string values while keeping object keys, numbers, booleans, and TypeScript structure identical.
+
 ```ts
 interface Product {
   name: string
@@ -133,7 +141,9 @@ const translated = await polyglot.translate(product, { to: "ru" })
 ```
 
 ### 2.4 Cache Management
+
 `polyglot-keeper` contains an automatic in-memory LRU cache.
+
 - To inspect or clear cache:
   ```ts
   polyglot.clearCache()
@@ -147,6 +157,7 @@ const translated = await polyglot.translate(product, { to: "ru" })
 Follow project architecture standards when creating Vue components or composables:
 
 ### 3.1 App Initialization (e.g. `main.ts` or Nuxt plugin)
+
 ```ts
 // plugins/polyglot.client.ts (or main.ts)
 import { polyglot } from "polyglot-keeper/runtime"
@@ -158,6 +169,7 @@ polyglot.init({
 ```
 
 ### 3.2 Composable Pattern (`usePolyglotTranslate.ts`)
+
 ```ts
 import { ref } from "vue"
 import { polyglot } from "polyglot-keeper/runtime"
@@ -198,6 +210,7 @@ export const usePolyglotTranslate = () => {
 For offline translation of locale files:
 
 ### CLI Commands:
+
 ```bash
 # Interactive setup:
 npx polyglot-keeper init
@@ -213,6 +226,7 @@ npx polyglot-keeper sync --force
 ```
 
 ### Configuration (`polyglot.config.json`):
+
 ```json
 {
   "envFile": ".env",
