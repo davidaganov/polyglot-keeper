@@ -6,34 +6,43 @@
 [![npm downloads](https://img.shields.io/npm/dm/polyglot-keeper.svg?style=flat-square)](https://www.npmjs.com/package/polyglot-keeper)
 [![License: MIT](https://img.shields.io/npm/l/polyglot-keeper.svg?style=flat-square)](https://github.com/davidaganov/polyglot-keeper/blob/main/LICENSE)
 
-An AI-powered i18n synchronization tool that automatically translates missing keys and maintains perfect structural consistency across all your locale and markdown files.
+**Polyglot Keeper** is an AI-powered i18n tool with two complementary modes:
 
-Works seamlessly with any framework (React, Vue, Svelte, Angular) and any i18n library.
+- **CLI / Build-time** — sync your JSON locale files and Markdown content across all languages automatically.
+- **Runtime API** — translate any string, array, or object structure on the fly, directly inside your app (Vue, React, Svelte, Astro, plain JS, Node.js, Edge Workers).
+
+Works with any framework and any i18n library. No vendor lock-in.
 
 |                 Before                 |                After                 |
 | :------------------------------------: | :----------------------------------: |
 | ![Before](docs/screenshots/before.png) | ![After](docs/screenshots/after.png) |
 
+---
+
 ## ✨ Features
 
-- **AI Translation** — Translates missing keys using Gemini, OpenAI, or Anthropic.
-- **Change Tracking** — Detects when source values change and updates translations (`off` / `on` / `carefully`).
-- **Structure Mirroring** — Keeps target files perfectly aligned with the source key structure and order.
-- **Clean Up** — Automatically removes obsolete keys that no longer exist in the primary locale.
-- **Reliable Processing** — Built-in batch processing with configurable retry and backoff settings.
-- **Interactive Setup** — Guided CLI wizard to get you started in seconds.
+- **AI Translation** — Gemini, OpenAI, or Anthropic. Your choice.
+- **Runtime API** — Translate strings, arrays, and nested objects at runtime in any environment.
+- **Proxy Mode** — Keep your API key server-side. Browser clients translate via your own endpoint with zero configuration overhead.
+- **LRU Cache** — Repeated translations are instant and free (no extra API calls).
+- **Change Tracking** — Detects source value changes and selectively retranslates (`off` / `on` / `carefully`).
+- **Structure Mirroring** — Target locale files stay perfectly aligned with the source structure and key order.
+- **Clean Up** — Automatically removes obsolete keys no longer present in the primary locale.
+- **Markdown Support** — Translates entire `.md` files while preserving formatting.
+- **Interactive Setup** — Guided CLI wizard. Up and running in under a minute.
+- **AI Agent Skill** — Pre-packaged skill for AI coding assistants (Antigravity IDE, Cursor, Claude Code) to scaffold, integrate, and write idiomatic translation code.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start — CLI Mode
 
-**1. Install the package**
+### 1. Install
 
 ```bash
 npm install -D polyglot-keeper
 ```
 
-**2. Initialize your project**
+### 2. Initialize
 
 ```bash
 npx polyglot-keeper init
@@ -41,32 +50,180 @@ npx polyglot-keeper init
 
 This creates `polyglot.config.json` and a `.env` file.
 
-**3. Add your API key**
+### 3. Add your API key
 
-Open the newly created `.env` file and add your provider's API key (Gemini, OpenAI, or Anthropic).
-
-```
+```bash
+# .env
 POLYGLOT_API_KEY=your_api_key_here
 ```
 
-**4. Run the sync**
+### 4. Sync
 
 ```bash
-# Sync JSON locales
-npx polyglot-keeper sync
-
-# Or sync Markdown files
-npx polyglot-keeper sync --md
+npx polyglot-keeper sync        # JSON locale files
+npx polyglot-keeper sync --md   # Markdown files
 ```
 
 ---
 
-## ⚙️ Configuration
+## ⚡ Runtime API
 
-Your setup is managed via `polyglot.config.json`.
+Use `polyglot-keeper/runtime` to translate content inside your application at runtime — no build step required.
+
+### Installation
+
+The runtime is included with the package. No additional install needed.
+
+### Initialization
+
+Call `polyglot.init()` once in your app's entry point.
+
+```ts
+import { polyglot, API_PROVIDER } from "polyglot-keeper/runtime"
+
+// Server-side / SSR (Direct Mode) — apiKey is safe here
+polyglot.init({
+  provider: API_PROVIDER.GEMINI,
+  apiKey: process.env.GEMINI_API_KEY,
+  defaultLocale: "en"
+})
+
+// Browser / SPA (Proxy Mode) — no apiKey in the bundle
+polyglot.init({
+  provider: API_PROVIDER.GEMINI,
+  endpoint: "/api/translate" // your own server endpoint
+})
+```
+
+### Translate a string
+
+```ts
+const text = await polyglot.t("Hello, world!", { to: "ru" })
+// → "Привет, мир!"
+```
+
+### Translate an array
+
+```ts
+const tags = await polyglot.translate(["Technology", "Design", "Business"], { to: "de" })
+// → ["Technologie", "Design", "Business"]
+```
+
+### Translate a nested object (preserves structure and TypeScript type)
+
+```ts
+const product = await polyglot.translate(
+  {
+    name: "Wireless Headphones",
+    description: "Premium sound quality.",
+    specs: { battery: "30 hours", weight: "250g" }
+  },
+  { to: "ru" }
+)
+
+// → { name: "Беспроводные наушники", description: "...", specs: { battery: "30 часов", weight: "250 г" } }
+```
+
+### Translate an entire locale file
+
+```ts
+import locale from "./i18n/en.json"
+
+const ruLocale = await polyglot.translate(locale, { to: "ru" })
+```
+
+### Cache
+
+Translations are cached in memory (LRU, 200 entries by default). The second call for the same input is instant.
+
+```ts
+// Force a fresh translation, bypassing the cache
+await polyglot.t("Hello", { to: "ru", bypassCache: true })
+
+// Clear the entire cache
+polyglot.clearCache()
+```
+
+---
+
+## 🔐 Proxy Mode (Browser / SPA)
+
+In browser environments, your API key must never appear in the client bundle. Proxy Mode solves this: your client calls your own server endpoint, which holds the key and forwards the request to the AI provider.
+
+### Server endpoint
+
+Create a route on your server using `createTranslateHandler`. It returns a standard [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `Request → Response` handler, compatible with Astro, SvelteKit, Nuxt, Next.js App Router, Hono, Cloudflare Workers, and Express.
+
+```ts
+// src/pages/api/translate.ts — Astro API Route
+import { createTranslateHandler, API_PROVIDER } from "polyglot-keeper/runtime"
+
+export const POST = createTranslateHandler({
+  keys: { [API_PROVIDER.GEMINI]: import.meta.env.GEMINI_API_KEY },
+  allowedLocales: ["ru", "de", "zh", "fr"] // optional whitelist
+})
+```
+
+```ts
+// server/api/translate.post.ts — Nuxt server route
+import { createTranslateHandler, API_PROVIDER } from "polyglot-keeper/runtime"
+
+const handler = createTranslateHandler({
+  keys: { [API_PROVIDER.GEMINI]: process.env.GEMINI_API_KEY! }
+})
+
+export default defineEventHandler((event) => handler(toWebRequest(event)))
+```
+
+### Client initialization
+
+```ts
+// main.ts
+import { polyglot, API_PROVIDER } from "polyglot-keeper/runtime"
+
+polyglot.init({
+  provider: API_PROVIDER.GEMINI,
+  endpoint: "/api/translate" // no apiKey!
+})
+```
+
+### Vue component example
+
+```vue
+<script setup lang="ts">
+import { ref, watchEffect } from "vue"
+import { polyglot } from "polyglot-keeper/runtime"
+
+const props = defineProps<{ text: string; locale: string }>()
+
+const translated = ref(props.text)
+const loading = ref(false)
+
+const handleTranslate = async () => {
+  loading.value = true
+  try {
+    translated.value = await polyglot.t(props.text, { to: props.locale })
+  } finally {
+    loading.value = false
+  }
+}
+
+watchEffect(handleTranslate)
+</script>
+
+<template>
+  <span :class="{ 'opacity-50': loading }">{{ translated }}</span>
+</template>
+```
+
+---
+
+## ⚙️ Configuration (CLI mode)
+
+Your setup lives in `polyglot.config.json`.
 
 <details>
-<summary><b>Click to view full configuration example</b></summary>
+<summary><b>Full configuration example</b></summary>
 
 ```json
 {
@@ -93,7 +250,6 @@ Your setup is managed via `polyglot.config.json`.
     "defaultLocale": "en",
     "locales": ["en", "ru"],
     "trackChanges": "carefully",
-    "batchSize": 200,
     "batchDelay": 2000,
     "retryDelay": 35000,
     "maxRetries": 3,
@@ -104,43 +260,24 @@ Your setup is managed via `polyglot.config.json`.
 
 </details>
 
-### Locale Formats
+### Locale formats
 
-- `short`: Simple locale codes (e.g., `en.json`, `ru.json`)
-- `pair`: BCP 47 format (e.g., `en-US.json`, `ru-RU.json`)
+| Value   | Example filenames          |
+| ------- | -------------------------- |
+| `short` | `en.json`, `ru.json`       |
+| `pair`  | `en-EN.json`, `ru-RU.json` |
 
-### Change Tracking Modes
+### Change tracking modes
 
-By default, the tool only translates missing keys. You can enable `trackChanges` in your config to handle source file modifications:
+| Value         | Behavior                                                  |
+| ------------- | --------------------------------------------------------- |
+| `"off"`       | Default. Only translate missing keys.                     |
+| `"on"`        | Auto-retranslate keys whose source value changed.         |
+| `"carefully"` | Interactive per-key review: retranslate, skip, or freeze. |
 
-- `"off"` — Default. Only translate new keys, ignore changes to existing values.
-- `"on"` — Automatically retranslate all target keys when the source key changes.
-- `"carefully"` — Interactive review. The CLI will prompt you for each changed key to either retranslate, skip, or freeze it.
+> **Note:** Enabling tracking creates `.polyglot-lock.json`. A frozen key is permanently excluded from retranslation (useful for manual overrides). Use `sync --force` to unfreeze all keys.
 
-> **Note:** Enabling tracking creates a `.polyglot-lock.json` file. Freezing a key locks it from future retranslations (useful for manual overrides). Use `sync --force` to clear frozen keys.
-
-`.polyglot-lock.json` uses sectioned storage:
-
-```json
-{
-  "json": {
-    "__frozen": ["some.key"],
-    "values": {
-      "some.key": "Source snapshot value"
-    }
-  },
-  "md": {
-    "__frozen": ["docs/readme.md"],
-    "values": {
-      "docs/readme.md": "<sha256 hash>"
-    }
-  }
-}
-```
-
-### Markdown Exclusions
-
-When syncing Markdown files (`sync --md`), you can exclude specific files or directories from translation by adding an `exclude` array to your `markdown` config. Patterns support glob-style matching:
+### Markdown exclusions
 
 ```json
 {
@@ -150,11 +287,9 @@ When syncing Markdown files (`sync --md`), you can exclude specific files or dir
 }
 ```
 
-This is useful for excluding draft content, private notes, or files that shouldn't be translated.
-
 ---
 
-## 💻 CLI Commands
+## 💻 CLI Reference
 
 | Command                            | Description                              |
 | :--------------------------------- | :--------------------------------------- |
@@ -165,19 +300,43 @@ This is useful for excluding draft content, private notes, or files that shouldn
 
 ---
 
+## 📦 Import Reference
+
+| Import path               | Contents                                                                               | Environment                          |
+| ------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------ |
+| `polyglot-keeper`         | `run()`, `API_PROVIDER`, `TRACK_CHANGES`, `LOCALE_FORMAT`, config types                | Node.js only                         |
+| `polyglot-keeper/runtime` | `polyglot`, `PolyglotRuntime`, `createTranslateHandler`, `API_PROVIDER`, runtime types | Universal (browser + Node.js + Edge) |
+
+---
+
+## 🤖 AI Agent Skill
+
+Polyglot Keeper includes a pre-packaged **AI Skill** for coding assistants (Google Antigravity IDE, Cursor, Claude Code, GitHub Copilot, etc.) located in `skills/polyglot-keeper/`.
+
+The skill equips your AI assistant with deep domain knowledge about Polyglot Keeper:
+
+- Choosing between **Direct Mode** (backend/SSR) and **Proxy Mode** (client/SPA).
+- Preventing AI API key leaks in client bundles.
+- Setting up server handlers (`createTranslateHandler`) for Nuxt, Astro, Next.js, and Express.
+- Type-safe object translations with `polyglot.translate()`.
+- Best practices for caching, lifecycle initialization, and locale sync.
+
+---
+
 ## 🛠 Requirements
 
 - Node.js 20+
-- A valid API key for Google Gemini, OpenAI, or Anthropic
+- An API key for [Google Gemini](https://aistudio.google.com/), [OpenAI](https://platform.openai.com/), or [Anthropic](https://www.anthropic.com/)
 
 ---
 
 ## 🤝 Contributing
 
-1. Clone the repo and run `npm install`
-2. Run quality checks before submitting a PR:
-
 ```bash
+git clone https://github.com/davidaganov/polyglot-keeper.git
+cd polyglot-keeper
+npm install
+
 npm run lint
 npm run typecheck
 npm run test
