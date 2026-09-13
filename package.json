@@ -29,6 +29,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "tsx src/index.ts",
     "sync": "node ./dist/index.js",
+    "serve": "node ./dist/cli.js serve",
     "prepublishOnly": "npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -53,7 +54,9 @@
     "json",
     "anthropic",
     "locales",
-    "multilingual"
+    "multilingual",
+    "ui",
+    "editor"
   ],
   "author": "David Aganov <davidaganov21@gmail.com>",
   "license": "MIT",

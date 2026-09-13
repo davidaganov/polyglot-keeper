@@ -7,8 +7,8 @@ import { type ProxyRequestBody } from "@/runtime/types"
  * Keep the API keys in environment variables, never in client code.
  */
 export interface ServerHandlerConfig {
-  /** Map of provider → API key. */
-  keys: Partial<Record<API_PROVIDER, string>>
+  /** Map of provider → API key (supports single key or array / comma-separated keys). */
+  keys: Partial<Record<API_PROVIDER, string | string[]>>
   /**
    * Optional allowlist of target languages.
    * If set, requests to languages not in this list will be rejected with 400.
@@ -16,7 +16,7 @@ export interface ServerHandlerConfig {
   allowedLocales?: string[]
 }
 
-const instantiateProvider = (provider: API_PROVIDER, model: string, apiKey: string) => {
+const instantiateProvider = (provider: API_PROVIDER, model: string, apiKey: string | string[]) => {
   switch (provider) {
     case API_PROVIDER.GEMINI:
       return new GeminiProvider(apiKey, model)

@@ -223,6 +223,16 @@ npx polyglot-keeper sync --md
 
 # Force re-translation of all keys:
 npx polyglot-keeper sync --force
+
+# Launch Visual Web UI Editor (browser at http://localhost:3636):
+npx polyglot-keeper serve
+```
+
+### Multi-Key Rotation (.env):
+Pass multiple API keys separated by commas to rotate calls and automatically bypass 429 rate limit errors:
+
+```bash
+POLYGLOT_API_KEY=key_1,key_2,key_3
 ```
 
 ### Configuration (`polyglot.config.json`):
