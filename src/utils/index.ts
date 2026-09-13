@@ -197,3 +197,45 @@ export const parseApiResponse = (text: string): TranslationBatch => {
     throw error
   }
 }
+
+/**
+ * Formats API error into a clean, human-readable error string,
+ * avoiding giant JSON dumps in console and UI notifications.
+ * @param provider - Provider name (Gemini, OpenAI, Anthropic).
+ * @param status - HTTP response status.
+ * @param rawText - Raw error response body.
+ * @returns Human-friendly error description.
+ */
+export const formatApiError = (provider: string, status: number, rawText: string): string => {
+  try {
+    const parsed = JSON.parse(rawText)
+    const errObj = parsed?.error || parsed
+    let message: string =
+      typeof errObj?.message === "string"
+        ? errObj.message
+        : typeof errObj === "string"
+          ? errObj
+          : ""
+
+    if (Array.isArray(errObj?.details)) {
+      const retryInfo = errObj.details.find((d: any) => d?.retryDelay)
+      if (retryInfo?.retryDelay) {
+        message += ` (Retry after ${retryInfo.retryDelay})`
+      }
+    }
+
+    if (message) {
+      message = message.replace(/\s+/g, " ").trim()
+      if (message.length > 220) {
+        message = message.slice(0, 217) + "..."
+      }
+      return `${provider} API error: ${status} - ${message}`
+    }
+  } catch {
+    // rawText is not JSON
+  }
+
+  const cleanRaw = rawText.replace(/\s+/g, " ").trim()
+  const snippet = cleanRaw.length > 150 ? cleanRaw.slice(0, 147) + "..." : cleanRaw
+  return `${provider} API error: ${status} - ${snippet || "Unknown error"}`
+}

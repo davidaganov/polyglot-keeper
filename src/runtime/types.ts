@@ -13,8 +13,8 @@ export type TranslatableInput = string | string[] | Record<string, unknown>
 export interface RuntimeConfig {
   provider: API_PROVIDER
   model?: string
-  /** Direct Mode: AI provider API key. Keep out of browser bundles. */
-  apiKey?: string
+  /** Direct Mode: AI provider API key or multiple keys. Keep out of browser bundles. */
+  apiKey?: string | string[]
   /** Proxy Mode: URL of your own server endpoint that forwards to the AI API. */
   endpoint?: string
   /** Default source locale (used when `from` is not provided). Default: "en". */
