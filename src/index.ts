@@ -34,6 +34,15 @@ export interface RunOptions {
   md?: boolean
 }
 
+export { API_PROVIDER, TRACK_CHANGES, LOCALE_FORMAT } from "@/interfaces"
+export type {
+  UserConfig,
+  JsonConfig,
+  MarkdownConfig,
+  SyncConfig,
+  MarkdownSyncConfig
+} from "@/interfaces"
+
 const getDefaultModel = (provider: API_PROVIDER): string => {
   switch (provider) {
     case API_PROVIDER.OPENAI:
