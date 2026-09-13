@@ -229,6 +229,7 @@ npx polyglot-keeper serve
 ```
 
 ### Multi-Key Rotation (.env):
+
 Pass multiple API keys separated by commas to rotate calls and automatically bypass 429 rate limit errors:
 
 ```bash
