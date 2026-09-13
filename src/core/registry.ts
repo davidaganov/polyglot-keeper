@@ -1,6 +1,6 @@
 import { TranslationProvider } from "@/interfaces"
 
-type ProviderConstructor = new (apiKey: string, model: string) => TranslationProvider
+type ProviderConstructor = new (apiKey: string | string[], model: string) => TranslationProvider
 
 const providers = new Map<string, ProviderConstructor>()
 
@@ -8,7 +8,11 @@ export const registerProvider = (name: string, providerClass: ProviderConstructo
   providers.set(name, providerClass)
 }
 
-export const getProvider = (name: string, apiKey: string, model: string): TranslationProvider => {
+export const getProvider = (
+  name: string,
+  apiKey: string | string[],
+  model: string
+): TranslationProvider => {
   const ProviderClass = providers.get(name)
   if (!ProviderClass) {
     throw new Error(

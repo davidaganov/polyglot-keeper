@@ -5,7 +5,7 @@ import { TranslationProvider, TranslationBatch } from "@/interfaces"
 class MockProvider implements TranslationProvider {
   name = "Mock"
   constructor(
-    public apiKey: string,
+    public apiKey: string | string[],
     public model: string
   ) {}
   async translateBatch(batch: TranslationBatch): Promise<TranslationBatch> {

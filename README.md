@@ -13,9 +13,7 @@
 
 Works with any framework and any i18n library. No vendor lock-in.
 
-|                 Before                 |                After                 |
-| :------------------------------------: | :----------------------------------: |
-| ![Before](docs/screenshots/before.png) | ![After](docs/screenshots/after.png) |
+![Polyglot Keeper Comparison](docs/screenshots/comparison.png)
 
 ---
 
@@ -25,6 +23,7 @@ Works with any framework and any i18n library. No vendor lock-in.
 - **Runtime API** — Translate strings, arrays, and nested objects at runtime in any environment.
 - **Proxy Mode** — Keep your API key server-side. Browser clients translate via your own endpoint with zero configuration overhead.
 - **LRU Cache** — Repeated translations are instant and free (no extra API calls).
+- **Visual Editor** — Built-in web UI (`npx polyglot-keeper serve`): translate keys with AI, add/remove locales, search, and save — all in the browser.
 - **Change Tracking** — Detects source value changes and selectively retranslates (`off` / `on` / `carefully`).
 - **Structure Mirroring** — Target locale files stay perfectly aligned with the source structure and key order.
 - **Clean Up** — Automatically removes obsolete keys no longer present in the primary locale.
@@ -50,11 +49,11 @@ npx polyglot-keeper init
 
 This creates `polyglot.config.json` and a `.env` file.
 
-### 3. Add your API key
+### 3. Add your API key(s)
 
 ```bash
-# .env
-POLYGLOT_API_KEY=your_api_key_here
+# .env — supports multiple keys separated by commas for automatic rotation & rate-limit failover
+POLYGLOT_API_KEY=key_1,key_2,key_3
 ```
 
 ### 4. Sync
@@ -63,6 +62,28 @@ POLYGLOT_API_KEY=your_api_key_here
 npx polyglot-keeper sync        # JSON locale files
 npx polyglot-keeper sync --md   # Markdown files
 ```
+
+---
+
+## 🖥 Visual Editor
+
+![Polyglot Keeper Visual Editor](docs/screenshots/ui.png)
+
+Launch a local web UI for managing your locale files — no external service required.
+
+```bash
+npx polyglot-keeper serve
+```
+
+Opens `http://localhost:3636` in your browser automatically. Features:
+
+- **Translation cards** — comfortable editing with source preview and draft tracking
+- **Filter & Search** — filter by `All`, `Missing`, or `Drafts` (unsaved changes), with instant search
+- **AI Translate** — translate a single key (✦) or all missing keys in bulk
+- **Add / Delete & Source Switch** — add new locales or keys, delete with confirmation, and switch the primary source locale (`Set as Source`)
+- **Save** — writes changes back to your JSON files on disk (<kbd>Ctrl+S</kbd> / <kbd>Cmd+S</kbd>)
+
+Requires the same `polyglot.config.json` and `.env` (API keys) as the CLI.
 
 ---
 

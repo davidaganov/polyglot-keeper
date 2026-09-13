@@ -26,7 +26,7 @@ export interface UserConfig {
 }
 
 export interface SyncConfig {
-  apiKey: string
+  apiKey: string | string[]
   rootDir: string
   langDir: string
   primaryLocaleFile: string
@@ -48,7 +48,7 @@ export interface SyncConfig {
 }
 
 export interface MarkdownSyncConfig {
-  apiKey: string
+  apiKey: string | string[]
   rootDir: string
   contentDir: string
   defaultLocale: string
